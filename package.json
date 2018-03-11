@@ -1,0 +1,22 @@
+{
+  "name": "listen-man",
+  "description": "a man that listens for a very specific thing",
+  "version": "0.0.1",
+  "author": "me",
+  "main": "./server.js",
+  "scripts": {
+    "start": "nodemon server.js"
+  },
+  "dependencies": {
+    "node": "^9.5.0",
+    "ws": "^5.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://www.github.com/robobluebird/listen-man"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "nodemon": "^1.17.1"
+  }
+}
