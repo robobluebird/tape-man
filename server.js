@@ -7,7 +7,7 @@ var offset = 0
 let server = http.createServer((request, response) => {
   if (request.method === 'GET') {
     if (request.url === '/') {
-      fs.readFile("public/index.html", function(err, html) {
+      fs.readFile("index.html", function(err, html) {
         response.writeHead(200, {'Content-Type': 'text/html'});
         response.end(html)
       })
