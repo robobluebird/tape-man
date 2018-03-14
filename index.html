@@ -2,66 +2,95 @@
 <html lang="en">
   <head>
     <meta charset="utf-8">
-    <title>Express session demo</title>
+    <title>tape-man</title>
+    <style type="text/css">
+      html, body {
+          height: 100%;
+      }
+      body {
+          margin: 0;
+      }
+      .flex-container {
+          height: 100%;
+          padding: 0;
+          margin: 0;
+          display: -webkit-box;
+          display: -moz-box;
+          display: -ms-flexbox;
+          display: -webkit-flex;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+      }
+      .row {
+          width: auto;
+          border: 1px solid blue;
+      }
+      .flex-item {
+          background-color: tomato;
+          padding: 10px;
+          margin: 10px;
+          line-height: 20px;
+          color: white;
+          font-weight: bold;
+          font-size: 2em;
+          text-align: center;
+      }
+    </style>
   </head>
-  <body>
-    <h1>Choose an action.</h1>
-    <button id="login" type="button" title="Simulate login">
-      Simulate login
-    </button>
-    <button id="logout" type="button" title="Simulate logout">
-      Simulate logout
-    </button>
-    <button id="wsButton" type="button" title="Open WebSocket connection">
-      Open WebSocket connection
-    </button>
-    <pre id="messages" style="height: 400px; overflow: scroll"></pre>
+  <body style="text-align:center;">
+    <div class="flex-container">
+        <div class="row">
+            <div class="flex-item" style="background-color: lawngreen">play</div>
+            <div class="flex-item">stop</div>
+        </div>
+    </div>
     <script type="text/javascript">
       (() => {
-        const messages = document.querySelector('#messages');
-        const wsButton = document.querySelector('#wsButton');
-        const logout = document.querySelector('#logout');
-        const login = document.querySelector('#login');
+        const socket = new WebSocket(`ws://${location.host}`)
+        const context = new AudioContext();
+        var buffer   = context.createBuffer(1, 1000000, 8000)
+        var data     = new Uint8Array(1000000)
+        var offset   = 0
+        var o        = 0
+        let source   = context.createBufferSource()
 
-        const showMessage = (message) => {
-        messages.textContent += `\n${message}`;
-        messages.scrollTop = messages.scrollHeight;
-      };
+        source.buffer = buffer;
+        source.connect(context.destination)
+        socket.binaryType = 'arraybuffer'
 
-        const handleResponse = (response) => {
-        return response.ok
-          ? response.json().then((data) => JSON.stringify(data, null, 2))
-          : Promise.reject(new Error('Unexpected response'));
-      };
+        socket.addEventListener('message', function (event) {
+          let bytes = new Uint8Array(event.data)
+          // data.set(bytes, offset)
+          // offset = offset + bytes.byteLength
+          loadSomeBytes(bytes)
+        })
 
-        login.onclick = () => {
-        fetch('/login', { method: 'POST', credentials: 'same-origin' })
-          .then(handleResponse)
-          .then(showMessage)
-          .catch((err) => showMessage(err.message));
-      };
+        function loadSomeBytes(byteArray) {
+          var arrayBuffer = new ArrayBuffer(byteArray.length);
+          var bufferView = new Uint8Array(arrayBuffer);
 
-        logout.onclick = () => {
-        fetch('/logout', { method: 'DELETE', credentials: 'same-origin' })
-          .then(handleResponse)
-          .then(showMessage)
-          .catch((err) => showMessage(err.message));
-      };
+          for (i = 0; i < byteArray.length; i++) {
+            bufferView[i] = byteArray[i];
+          }
 
-        let ws;
+          console.log(bufferView)
 
-        wsButton.onclick = () => {
-        if (ws) {
-        ws.onerror = ws.onopen = ws.onclose = null;
-        ws.close();
-      }
+          context.decodeAudioData(arrayBuffer)
+            .then((newData) => {
+              buffer.copyToChannel(newData, 0, o)
+              o = o + newData.length
+              console.log(`loaded ${newData.length} into buffer`)
+            })
+            .catch((error) => {
+              console.log(error)
+            })
+        }
 
-        ws = new WebSocket(`ws://${location.host}`);
-        ws.onerror = () => showMessage('WebSocket error');
-        ws.onopen = () => showMessage('WebSocket connection established');
-        ws.onclose = () => showMessage('WebSocket connection closed');
-      };
-      })();
+        // function play() {
+        //   source.start(0);
+        // }
+    })()
     </script>
   </body>
 </html>
