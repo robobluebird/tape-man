@@ -9,20 +9,9 @@ let server = http.createServer((request, response) => {
         response.writeHead(200, {'Content-Type': 'text/html'});
         response.end(html)
       })
-    } else if (request.url === '/data') {
-      data.set(new Uint8Array([1,2,3]), 0)
-      offset = offset + 3
-
-      var a1 = new Uint8Array(offset)
-      var b1 = Buffer.from(a1)
-      var b2 = Buffer.from(data)
-
-      b2.copy(b1, 0, 0, offset)
-
-      response.end(b1)
-
-      data = new Uint8Array(1000000)
-      offset = 0
+    } else if (request.url == '/favicon.ico') {
+      response.setHeader('Content-Type', 'image/x-icon');
+      fs.createReadStream('favicon.ico').pipe(response);
     }
   }
 })
@@ -42,17 +31,3 @@ wss.on('connection', function connection(ws, request) {
 })
 
 server.listen(8080)
-
-// const wss = new webSocket.Server({
-//   verifyClient: (info, done) => {
-//     console.log('Parsing session from request...')
-//
-//     console.log(info.req)
-//     console.log(
-//     sessionParser(info.req, {}, () => {
-//       console.log('Session is parsed!')
-//       done(info.req.session.userId)
-//     })
-//   },
-//   server
-// })

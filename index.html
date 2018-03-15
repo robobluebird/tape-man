@@ -41,7 +41,7 @@
   <body style="text-align:center;">
     <div class="flex-container">
         <div class="row">
-            <div class="flex-item" style="background-color: lawngreen">play</div>
+            <div onclick="play()" class="flex-item" style="background-color: lawngreen">play</div>
             <div class="flex-item">stop</div>
         </div>
     </div>
@@ -60,36 +60,33 @@
         socket.binaryType = 'arraybuffer'
 
         socket.addEventListener('message', function (event) {
-          let bytes = new Uint8Array(event.data)
-          // data.set(bytes, offset)
-          // offset = offset + bytes.byteLength
-          loadSomeBytes(bytes)
+          loadSomeBytes(new Uint8Array(event.data))
         })
 
-        function loadSomeBytes(byteArray) {
-          var arrayBuffer = new ArrayBuffer(byteArray.length);
-          var bufferView = new Uint8Array(arrayBuffer);
+        const loadSomeBytes = (byteArray) => {
+          let convertedBytes = new Float32Array(byteArray.byteLength)
 
-          for (i = 0; i < byteArray.length; i++) {
-            bufferView[i] = byteArray[i];
+          for (var i = 0; i < byteArray.length; i++) {
+            convertedBytes[i] = squash(byteArray[i])
           }
 
-          console.log(bufferView)
+          buffer.copyToChannel(convertedBytes, 0, o)
 
-          context.decodeAudioData(arrayBuffer)
-            .then((newData) => {
-              buffer.copyToChannel(newData, 0, o)
-              o = o + newData.length
-              console.log(`loaded ${newData.length} into buffer`)
-            })
-            .catch((error) => {
-              console.log(error)
-            })
+          o = o + byteArray.byteLength
+
+          console.log(`loaded ${byteArray.byteLength} values into buffer starting at offset ${o}`)
+          console.log(buffer)
+          console.log(buffer.getChannelData(0)[0])
         }
 
-        // function play() {
-        //   source.start(0);
-        // }
+        const squash = (intValue) => {
+          return ((intValue * 2.0) / 255.0) + -1
+        }
+
+        function play() {
+          source.start(0);
+        }
+
     })()
     </script>
   </body>
