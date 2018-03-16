@@ -6,6 +6,7 @@
     <style type="text/css">
       html, body {
           height: 100%;
+          font-family: sans-serif;
       }
       body {
           margin: 0;
@@ -41,22 +42,30 @@
   <body style="text-align:center;">
     <div class="flex-container">
         <div class="row">
-            <div onclick="play()" class="flex-item" style="background-color: lawngreen">play</div>
-            <div class="flex-item">stop</div>
+            <div id="play" class="flex-item" style="background-color: lawngreen">play</div>
+            <div id="stop" class="flex-item">stop</div>
         </div>
     </div>
     <script type="text/javascript">
       (() => {
         const socket = new WebSocket(`ws://${location.host}`)
         const context = new AudioContext();
-        var buffer   = context.createBuffer(1, 1000000, 8000)
-        var data     = new Uint8Array(1000000)
-        var offset   = 0
-        var o        = 0
-        let source   = context.createBufferSource()
 
-        source.buffer = buffer;
+        var buffer1    = context.createBuffer(1, 16000, 8000)
+        var buffer2    = context.createBuffer(1, 16000, 8000)
+        var offset     = 0
+        let source1    = context.createBufferSource()
+        let source2    = context.createBufferSource()
+        let playButton = document.querySelector('#play')
+        let stopButton = document.querySelector('#stop')
+        var sources    = [source1, source2]
+
+        source1.buffer = buffer1
+        source2.buffer = buffer2
+
         source.connect(context.destination)
+        source.connect(context.destination)
+
         socket.binaryType = 'arraybuffer'
 
         socket.addEventListener('message', function (event) {
@@ -70,23 +79,27 @@
             convertedBytes[i] = squash(byteArray[i])
           }
 
-          buffer.copyToChannel(convertedBytes, 0, o)
+          if (offset < 16000) {
+            buffer1.copyToChannel(convertedBytes, 0, offset)
+          } else {
+            // set offset to 0 first
+            buffer2.copyToChannel(convertedBytes, 0, offset)
+          }
 
-          o = o + byteArray.byteLength
-
-          console.log(`loaded ${byteArray.byteLength} values into buffer starting at offset ${o}`)
-          console.log(buffer)
-          console.log(buffer.getChannelData(0)[0])
+          offset = offset + byteArray.byteLength
         }
 
         const squash = (intValue) => {
           return ((intValue * 2.0) / 255.0) + -1
         }
 
-        function play() {
-          source.start(0);
+        playButton.onclick = () => {
+          source.start()
         }
 
+        stopButton.onclick = () => {
+          source.stop()
+        }
     })()
     </script>
   </body>
