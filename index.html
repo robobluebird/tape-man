@@ -4,69 +4,65 @@
     <meta charset="utf-8">
     <title>tape-man</title>
     <style type="text/css">
-      html, body {
-          height: 100%;
-          font-family: sans-serif;
-      }
+html, body {
+  height: 100%;
+  font-family: sans-serif;
+}
       body {
-          margin: 0;
+        margin: 0;
       }
       .flex-container {
-          height: 100%;
-          padding: 0;
-          margin: 0;
-          display: -webkit-box;
-          display: -moz-box;
-          display: -ms-flexbox;
-          display: -webkit-flex;
-          display: flex;
-          align-items: center;
-          justify-content: center;
+        height: 100%;
+        padding: 0;
+        margin: 0;
+        display: -webkit-box;
+        display: -moz-box;
+        display: -ms-flexbox;
+        display: -webkit-flex;
+        display: flex;
+        align-items: center;
+        justify-content: center;
       }
       .row {
-          width: auto;
-          border: 1px solid blue;
+        width: auto;
+        border: 1px solid blue;
       }
       .flex-item {
-          background-color: tomato;
-          padding: 10px;
-          margin: 10px;
-          line-height: 20px;
-          color: white;
-          font-weight: bold;
-          font-size: 2em;
-          text-align: center;
+        background-color: tomato;
+        padding: 10px;
+        margin: 10px;
+        line-height: 20px;
+        color: white;
+        font-weight: bold;
+        font-size: 2em;
+        text-align: center;
       }
     </style>
   </head>
   <body style="text-align:center;">
     <div class="flex-container">
-        <div class="row">
-            <div id="play" class="flex-item" style="background-color: lawngreen">play</div>
-            <div id="stop" class="flex-item">stop</div>
-        </div>
+      <div class="row">
+        <div id="play" class="flex-item" style="background-color: lawngreen">play</div>
+        <div id="stop" class="flex-item">stop</div>
+      </div>
     </div>
     <script type="text/javascript">
       (() => {
         const socket = new WebSocket(`ws://${location.host}`)
         const context = new AudioContext();
 
-        var buffer1    = context.createBuffer(1, 16000, 8000)
-        var buffer2    = context.createBuffer(1, 16000, 8000)
-        var offset     = 0
-        let source1    = context.createBufferSource()
-        let source2    = context.createBufferSource()
+        socket.binaryType = 'arraybuffer'
+
         let playButton = document.querySelector('#play')
         let stopButton = document.querySelector('#stop')
-        var sources    = [source1, source2]
 
-        source1.buffer = buffer1
-        source2.buffer = buffer2
+        let time       = 0
+        let offset     = 0
+        let currentBuffer = null
+        let currentBufferSource = null
+        let playing = false
 
-        source.connect(context.destination)
-        source.connect(context.destination)
-
-        socket.binaryType = 'arraybuffer'
+        var sources    = []
 
         socket.addEventListener('message', function (event) {
           loadSomeBytes(new Uint8Array(event.data))
@@ -79,14 +75,30 @@
             convertedBytes[i] = squash(byteArray[i])
           }
 
-          if (offset < 16000) {
-            buffer1.copyToChannel(convertedBytes, 0, offset)
-          } else {
-            // set offset to 0 first
-            buffer2.copyToChannel(convertedBytes, 0, offset)
+          if (offset >= 8000) {
+            if (playing) {
+              time = time + sources[sources.length - 1].buffer.duration
+              currentBufferSource.start(time)
+            }
+
+            sources.push(currentBufferSource)
+
+            offset = 0
+            currentBuffer = context.createBuffer(1, 8000, 22050)
+            currentBufferSource = context.createBufferSource()
+            currentBufferSource.connect(context.destination)
+            currentBufferSource.buffer = currentBuffer
+          } else if (currentBufferSource == null) {
+            offset = 0
+            currentBuffer = context.createBuffer(1, 8000, 22050)
+            currentBufferSource = context.createBufferSource()
+            currentBufferSource.connect(context.destination)
+            currentBufferSource.buffer = currentBuffer
           }
 
+          currentBuffer.copyToChannel(convertedBytes, 0, offset)
           offset = offset + byteArray.byteLength
+          // console.log(`wrote ${offset} bytes to source ${sources.length}`)
         }
 
         const squash = (intValue) => {
@@ -94,13 +106,19 @@
         }
 
         playButton.onclick = () => {
-          source.start()
+          time = context.currentTime
+
+          for (var i = 0; i < sources.length; i++) {
+            time = time + sources[i].buffer.duration
+            sources[i].start(time)
+          }
+
+          playing = true
         }
 
         stopButton.onclick = () => {
-          source.stop()
         }
-    })()
+      })()
     </script>
   </body>
 </html>
