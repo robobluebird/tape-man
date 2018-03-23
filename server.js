@@ -20,9 +20,6 @@ const wss = new webSocket.Server({ server })
 
 wss.on('connection', function connection(ws, request) {
   ws.on('message', function incoming(message) {
-    console.log("got some stuff")
-    console.log(message)
-
     let data = new Uint8Array(message.match(/.{1,2}/g).map(x => parseInt(x, 16)))
 
     wss.clients.forEach(function each(client) {

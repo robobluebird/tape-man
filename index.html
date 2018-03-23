@@ -98,8 +98,6 @@ html, body {
 
           currentBuffer.copyToChannel(convertedBytes, 0, offset)
           offset = offset + byteArray.byteLength
-
-          console.log(`wrote ${offset} bytes to source ${sources.length}`)
         }
 
         const squash = (intValue) => {

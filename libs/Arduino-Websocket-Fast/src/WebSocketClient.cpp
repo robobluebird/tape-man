@@ -14,6 +14,7 @@ bool WebSocketClient::handshake(Client &client, bool socketio) {
     strcpy(sid, "");
 
     // If there is a connected client->
+    
     if (socket_client->connected()) {
         // Check request and look for websocket handshake
 #ifdef DEBUGGING
@@ -40,6 +41,14 @@ bool WebSocketClient::handshake(Client &client, bool socketio) {
             return false;
         }
     } else {
+        Serial.println(F("Terrible news"));
+
+        if (client.connected()) {
+          Serial.println(F("Terriblest news"));
+        } else {
+          Serial.println(F("Terribler news"));
+        }
+
         return false;
     }
 }
@@ -83,7 +92,7 @@ bool WebSocketClient::analyzeRequest() {
         socket_client->print(F(" HTTP/1.1\r\n"));
         socket_client->print(F("Upgrade: websocket\r\n"));
         socket_client->print(F("Connection: Upgrade\r\n"));
-        socket_client->print(F("Sec-WebSocket-Key: "));
+        socket_client->print(F("Sec-Websocket-Key: "));
         socket_client->print(key);
         socket_client->print(CRLF);
         socket_client->print(F("Sec-WebSocket-Protocol: "));
