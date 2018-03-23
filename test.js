@@ -1,5 +1,5 @@
 const WebSocket = require('ws')
-const ws = new WebSocket('ws://localhost:8080')
+const ws = new WebSocket('ws://tape-man.herokuapp.com')
 
 let tones = [generateTone(440), generateTone(440), generateTone(440)]
 let readyToSend = []

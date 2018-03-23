@@ -1,4 +1,4 @@
-#define DEBUGGING
+//#define DEBUGGING
 
 #include "global.h"
 #include "WebSocketClient.h"
@@ -14,7 +14,6 @@ bool WebSocketClient::handshake(Client &client, bool socketio) {
     strcpy(sid, "");
 
     // If there is a connected client->
-    
     if (socket_client->connected()) {
         // Check request and look for websocket handshake
 #ifdef DEBUGGING
@@ -41,14 +40,6 @@ bool WebSocketClient::handshake(Client &client, bool socketio) {
             return false;
         }
     } else {
-        Serial.println(F("Terrible news"));
-
-        if (client.connected()) {
-          Serial.println(F("Terriblest news"));
-        } else {
-          Serial.println(F("Terribler news"));
-        }
-
         return false;
     }
 }
