@@ -5,6 +5,8 @@ const fs = require('fs')
 let server = http.createServer((request, response) => {
   if (request.method === 'GET') {
     if (request.url === '/') {
+      console.log("felt something")
+
       fs.readFile("index.html", function(err, html) {
         response.writeHead(200, {'Content-Type': 'text/html'});
         response.end(html)
@@ -30,4 +32,4 @@ wss.on('connection', function connection(ws, request) {
   })
 })
 
-server.listen(8080)
+server.listen(80)

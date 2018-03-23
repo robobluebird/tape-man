@@ -41,6 +41,7 @@ Currently based off of "The Web Socket protocol" draft (v 75):
 http://tools.ietf.org/html/draft-hixie-thewebsocketprotocol-75
 */
 
+#define DEBUGGING
 
 #ifndef WEBSOCKETCLIENT_H_
 #define WEBSOCKETCLIENT_H_

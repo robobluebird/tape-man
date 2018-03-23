@@ -84,13 +84,13 @@ html, body {
             sources.push(currentBufferSource)
 
             offset = 0
-            currentBuffer = context.createBuffer(1, 8000, 22050)
+            currentBuffer = context.createBuffer(1, 8000, 8000)
             currentBufferSource = context.createBufferSource()
             currentBufferSource.connect(context.destination)
             currentBufferSource.buffer = currentBuffer
           } else if (currentBufferSource == null) {
             offset = 0
-            currentBuffer = context.createBuffer(1, 8000, 22050)
+            currentBuffer = context.createBuffer(1, 8000, 8000)
             currentBufferSource = context.createBufferSource()
             currentBufferSource.connect(context.destination)
             currentBufferSource.buffer = currentBuffer
@@ -98,7 +98,8 @@ html, body {
 
           currentBuffer.copyToChannel(convertedBytes, 0, offset)
           offset = offset + byteArray.byteLength
-          // console.log(`wrote ${offset} bytes to source ${sources.length}`)
+
+          console.log(`wrote ${offset} bytes to source ${sources.length}`)
         }
 
         const squash = (intValue) => {
