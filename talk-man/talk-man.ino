@@ -15,7 +15,7 @@ WebSocketClient webSocketClient;
 IPAddress ip(10, 17, 4, 207);
 
 char server[] = "tape-man.herokuapp.com";
-char hex[80];
+char hex[100];
 char* sprinter = hex;
 char wsPath[] = "/";
 char* pathPtr = wsPath;
@@ -59,9 +59,7 @@ void makeConnection() {
       Serial.println("Handshake successful");
     } else {
       Serial.println("Handshake failed.");
-      while (1) {
-        // Hang on failure
-      }
+      while (1) {}
     }
   } else {
     Serial.println("Connection failed.");
@@ -82,11 +80,12 @@ void loop() {
 
   sprinter += sprintf(sprinter, "%02X", analogValue);
 
-  if (sprinter >= hex + 80) {
+  if (sprinter >= hex + 100) {
     if (client.connected()) {
       webSocketClient.sendData(hex);
     } else {
-      makeConnection();
+      Serial.println(F("I'm sorry that you have failed"));
+      while(1) {}
     }
 
     sprinter = hex;

@@ -12,6 +12,9 @@ let server = http.createServer((request, response) => {
     } else if (request.url == '/favicon.ico') {
       response.setHeader('Content-Type', 'image/x-icon');
       fs.createReadStream('favicon.ico').pipe(response);
+    } else if (request.url == '/tape.png') {
+      response.setHeader('Content-Type', 'image/png');
+      fs.createReadStream('tape.png').pipe(response);
     }
   }
 })
