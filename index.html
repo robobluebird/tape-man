@@ -73,11 +73,16 @@
 
         socket.binaryType = 'arraybuffer'
 
-        let time       = 0
+        var time       = 0
         let offset     = 0
         let currentBuffer = null
         let currentBufferSource = null
         let playing = false
+        let aGiantBuffer = context.createBuffer(1, 28800000, 8000)
+
+        currentBufferSource = context.createBufferSource()
+        currentBufferSource.connect(context.destination)
+        currentBufferSource.buffer = aGiantBuffer
 
         var sources    = []
 
@@ -86,51 +91,59 @@
         })
 
         const loadSomeBytes = (byteArray) => {
+          if (offset >= 28800000)
+            return
+
           let convertedBytes = new Float32Array(byteArray.byteLength)
 
           for (var i = 0; i < byteArray.length; i++) {
             convertedBytes[i] = squash(byteArray[i])
           }
 
-          if (offset >= 8000) {
-            if (playing) {
-              time = time + sources[sources.length - 1].buffer.duration
-              currentBufferSource.start(time)
-            } else if (sources.length > 5) {
-              time = context.currentTime
-
-              for (var i = 0; i < sources.length; i++) {
-                time = time + sources[i].buffer.duration
-                sources[i].start(time)
-              }
-
-              playing = true
-
-              document.getElementById('indicator').style.display = ''
-            }
-
-            sources.push(currentBufferSource)
-
-            offset = 0
-            currentBuffer = context.createBuffer(1, 8000, 8000)
-            currentBufferSource = context.createBufferSource()
-            currentBufferSource.connect(context.destination)
-            currentBufferSource.buffer = currentBuffer
-          } else if (currentBufferSource == null) {
-            offset = 0
-            currentBuffer = context.createBuffer(1, 8000, 8000)
-            currentBufferSource = context.createBufferSource()
-            currentBufferSource.connect(context.destination)
-            currentBufferSource.buffer = currentBuffer
+          if (offset >= 40000 && !playing) {
+            playing = true
+            currentBufferSource.start()
           }
 
-          currentBuffer.copyToChannel(convertedBytes, 0, offset)
+          aGiantBuffer.copyToChannel(convertedBytes, 0, offset)
+
           offset = offset + byteArray.byteLength
         }
 
         const squash = (intValue) => {
           return ((intValue * 2.0) / 255.0) + -1
         }
+
+          //   if (playing) {
+          //     time += sources[sources.length - 1].buffer.duration
+          //     currentBufferSource.start(time)
+          //   } else if (sources.length > 5) {
+          //     time = context.currentTime
+          //
+          //     for (var i = 0; i < sources.length; i++) {
+          //       time += sources[i].buffer.duration
+          //       sources[i].start(time)
+          //     }
+          //
+          //     playing = true
+          //
+          //     document.getElementById('indicator').style.display = ''
+          //   }
+          //
+          //   sources.push(currentBufferSource)
+          //
+          //   offset = 0
+          //   currentBuffer = context.createBuffer(1, 8000, 8000)
+          //   currentBufferSource = context.createBufferSource()
+          //   currentBufferSource.connect(context.destination)
+          //   currentBufferSource.buffer = currentBuffer
+          // } else if (currentBufferSource == null) {
+          //   offset = 0
+          //   currentBuffer = context.createBuffer(1, 8000, 8000)
+          //   currentBufferSource = context.createBufferSource()
+          //   currentBufferSource.connect(context.destination)
+          //   currentBufferSource.buffer = currentBuffer
+          // }
       })()
     </script>
   </body>
