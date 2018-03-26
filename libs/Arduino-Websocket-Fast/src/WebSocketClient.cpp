@@ -488,7 +488,7 @@ void WebSocketClient::sendEncodedData(uint8_t bytes[], size_t size, uint8_t opco
     socket_client->write((uint8_t) (size >> 8));
     socket_client->write((uint8_t) (size & 0xFF));
   } else {
-    socket_client->write((uint8_t) size | WS_MASK);
+    socket_client->write((uint8_t) (size | WS_MASK));
   }
 
   if (WS_MASK > 0) {
@@ -514,33 +514,29 @@ void WebSocketClient::sendEncodedData(uint8_t bytes[], size_t size, uint8_t opco
 
 void WebSocketClient::sendEncodedDataFast(uint8_t bytes[], size_t size, uint8_t opcode) {
   uint8_t mask[4];
-  int size_buf = size + 1;
-  int buf_index = 0;
+  int buffer_size = size + 1;
+  int buffer_index = 0;
 
   if (size > 125) {
-    size_buf += 3;
+    buffer_size += 3;
   } else {
-    size_buf += 1;
+    buffer_size += 1;
   }
   if (WS_MASK > 0) {
-    size_buf += 4;
+    buffer_size += 4;
   }
 
-  uint8_t buf[size_buf];
+  uint8_t buffer[buffer_size];
 
-  buf[buf_index++] = (opcode | WS_FIN);
+  buffer[buffer_index++] = (uint8_t) (opcode | WS_FIN);
 
   // NOTE: no support for > 16-bit sized messages
   if (size > 125) {
-    sprintf(tmp, "%c", (char)(WS_SIZE16 | WS_MASK));
-    strcat(buf, tmp);
-    sprintf(tmp, "%c", (char) (size >> 8));
-    strcat(buf, tmp);
-    sprintf(tmp, "%c", (char) (size & 0xFF));
-    strcat(buf, tmp);
+    buffer[buffer_index++] = (uint8_t) (opcode | WS_FIN);
+    buffer[buffer_index++] = (uint8_t) (size >> 8);
+    buffer[buffer_index++] = (uint8_t) (size & 0xFF);
   } else {
-    sprintf(tmp, "%c", (char) size | WS_MASK);
-    strcat(buf, tmp);
+    buffer[buffer_index++] = (uint8_t) (size | WS_MASK);
   }
 
   if (WS_MASK > 0) {
@@ -549,22 +545,21 @@ void WebSocketClient::sendEncodedDataFast(uint8_t bytes[], size_t size, uint8_t 
     mask[2] = random(0, 256);
     mask[3] = random(0, 256);
 
-    sprintf(tmp, "%c", (char) mask[0]);
-    strcat(buf, tmp);
-    sprintf(tmp, "%c", (char) mask[1]);
-    strcat(buf, tmp);
-    sprintf(tmp, "%c", (char) mask[2]);
-    strcat(buf, tmp);
-    sprintf(tmp, "%c", (char) mask[3]);
-    strcat(buf, tmp);
+    buffer[buffer_index++] = mask[0];
+    buffer[buffer_index++] = mask[1];
+    buffer[buffer_index++] = mask[2];
+    buffer[buffer_index++] = mask[3];
 
     for (int i=0; i<size; ++i) {
-      str[i] = str[i] ^ mask[i % 4];
+      bytes[i] = bytes[i] ^ mask[i % 4];
     }
   }
 
-  strcat(buf, str);
-  socket_client->write((uint8_t*)buf, size_buf);
+  for (int i = 0; i < size; i++) {
+    buffer[buffer_index++] = bytes[i];
+  }
+
+  socket_client->write((uint8_t*) buffer, buffer_size);
 }
 
 void WebSocketClient::sendEncodedDataFast(char *str, uint8_t opcode) {
