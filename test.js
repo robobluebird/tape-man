@@ -1,27 +1,35 @@
 const WebSocket = require('ws')
-const ws = new WebSocket('ws://localhost:8080')
+const ws = new WebSocket('ws://10.17.105.5')
 
-let tones = [generateTone(440), generateTone(440), generateTone(440)]
+let tones = [generateTone(440)]
 let readyToSend = []
 
 ws.on('open', function open() {
-  for (var frequencyIndex = 0; frequencyIndex < tones.length; frequencyIndex) {
-    for(var toneIndex = 0; toneIndex < tones[frequencyIndex].length; toneIndex += 500) {
-      let hexString = ''
+  while (true) {
+    for (var frequencyIndex = 0; frequencyIndex < tones.length; frequencyIndex) {
+      for(var toneIndex = 0; toneIndex < tones[frequencyIndex].length; toneIndex += 500) {
+        let hexString = ''
 
-      for (var counter = 0; counter < 500; counter++) {
-        let asHex = tones[frequencyIndex][toneIndex + counter].toString(16).toUpperCase()
+        // for (var counter = 0; counter < 500; counter++) {
+        //   let asHex = tones[frequencyIndex][toneIndex + counter].toString(16).toUpperCase()
+        //
+        //   hexString = hexString.concat('00'.substring(asHex.length) + asHex)
+        // }
 
-        hexString = hexString.concat('00'.substring(asHex.length) + asHex)
+        var smaller = new Uint8Array(500)
+
+        for (var counter = 0; counter < 500; counter++) {
+          smaller[counter] = tones[frequencyIndex][toneIndex + counter]
+        }
+
+        // var stop = new Date().getTime();
+        //
+        // while(new Date().getTime() < stop + 100) {
+        //   ;
+        // }
+
+        ws.send(smaller)
       }
-
-      // var stop = new Date().getTime();
-      //
-      // while(new Date().getTime() < stop + 100) {
-      //   ;
-      // }
-
-      ws.send(hexString)
     }
   }
 })

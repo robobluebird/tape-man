@@ -10,18 +10,26 @@ byte mac[] = {
   0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED
 };
 
-IPAddress ip(192, 168, 1, 153);
 EthernetClient client;
 WebSocketClient webSocketClient;
+IPAddress ip(10, 17, 4, 207);
 
-char server[] = "192.168.1.151";
-char hex[64];
+char server[] = "tape-man.herokuapp.com";
+char hex[100];
 char* sprinter = hex;
+char wsPath[] = "/";
+char* pathPtr = wsPath;
+char* hostPtr = server;
 
 void setup() {
-//  for (int i = 0; i < 8; i++) {
-//    pinMode(i, OUTPUT);
-//  }
+  webSocketClient.path = pathPtr;
+  webSocketClient.host = hostPtr;
+
+  //  for (int i = 0; i < 8; i++) {
+  //    pinMode(i, OUTPUT);
+  //  }
+  //
+  pinMode(9, OUTPUT);
 
   Serial.begin(9600);
 
@@ -29,43 +37,32 @@ void setup() {
     ;
   }
 
-//  delay(1000); // give the ethernet module time to boot up:
-//
-//  // start the Ethernet connection using a fixed IP address and DNS server:
-//  Ethernet.begin(mac, ip);
-//
-//  Serial.print("My IP address: ");
-//  Serial.println(Ethernet.localIP());
-//
-//  makeConnection();
+  delay(1000); // give the ethernet module time to boot up:
+
+  Serial.println(F("Connecting to ethernet..."));
+
+  Ethernet.begin(mac);
+
+  Serial.print("Connected. My IP address: ");
+  Serial.println(Ethernet.localIP());
+
+  makeConnection();
 }
 
 void makeConnection() {
-  // Connect to the websocket server
+  Serial.println(F("Connecting..."));
+
   if (client.connect(server, 80)) {
-    Serial.println("Connected");
+    Serial.println(F("Connected"));
+
+    if (webSocketClient.handshake(client)) {
+      Serial.println("Handshake successful");
+    } else {
+      Serial.println("Handshake failed.");
+      while (1) {}
+    }
   } else {
     Serial.println("Connection failed.");
-    while (1) {
-      // Hang on failure
-    }
-  }
-
-  // Handshake with the server
-  char path[] = "/";
-  char* pathPtr = path;
-  char host[] = "ws://192.168.1.151";
-  char* hostPtr = host;
-  webSocketClient.path = pathPtr;
-  webSocketClient.host = hostPtr;
-
-  if (webSocketClient.handshake(client)) {
-    Serial.println("Handshake successful");
-  } else {
-    Serial.println("Handshake failed.");
-    while (1) {
-      // Hang on failure
-    }
   }
 }
 
@@ -76,22 +73,23 @@ void loop() {
     analogValue = 0;
 
   if (analogValue == 0 || analogValue == 255) {
-    digitalWrite(13, HIGH);
+    digitalWrite(9, HIGH);
   } else {
-    digitalWrite(13, LOW);
+    digitalWrite(9, LOW);
   }
 
-//  sprinter += sprintf(sprinter, "%02X", analogValue);
-//
-//  if (sprinter >= hex + 64) {
-//    if (client.connected()) {
-//      webSocketClient.sendData(hex);
-//    } else {
-//      makeConnection();
-//    }
-//
-//    sprinter = hex;
-//  }
+  sprinter += sprintf(sprinter, "%02X", analogValue);
+
+  if (sprinter >= hex + 100) {
+    if (client.connected()) {
+      webSocketClient.sendData(hex);
+    } else {
+      Serial.println(F("I'm sorry that you have failed"));
+      while(1) {}
+    }
+
+    sprinter = hex;
+  }
 
 //  PORTD = analogValue;
 }

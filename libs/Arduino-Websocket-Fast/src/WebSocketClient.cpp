@@ -55,7 +55,34 @@ bool WebSocketClient::analyzeRequest() {
     keyStart[i] = (char)random(1, 256);
   }
 
-  base64_encode(b64Key, keyStart, 16);
+        randomSeed(analogRead(0));
+
+        for (int i=0; i<16; ++i) {
+            keyStart[i] = (char)random(1, 256);
+        }
+
+        base64_encode(b64Key, keyStart, 16);
+
+        for (int i=0; i<24; ++i) {
+            key[i] = b64Key[i];
+        }
+
+        socket_client->print(F("GET "));
+        socket_client->print(path);
+        if (issocketio) {
+            socket_client->print(F("socket.io/?EIO=3&transport=websocket&sid="));
+            socket_client->print(sid);
+        }
+        socket_client->print(F(" HTTP/1.1\r\n"));
+        socket_client->print(F("Upgrade: websocket\r\n"));
+        socket_client->print(F("Connection: Upgrade\r\n"));
+        socket_client->print(F("Sec-Websocket-Key: "));
+        socket_client->print(key);
+        socket_client->print(CRLF);
+        socket_client->print(F("Sec-WebSocket-Protocol: "));
+        socket_client->print(protocol);
+        socket_client->print(CRLF);
+        socket_client->print(F("Sec-WebSocket-Version: 13\r\n"));
 
   for (int i=0; i<24; ++i) {
     key[i] = b64Key[i];

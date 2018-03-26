@@ -12,6 +12,9 @@ let server = http.createServer((request, response) => {
     } else if (request.url == '/favicon.ico') {
       response.setHeader('Content-Type', 'image/x-icon');
       fs.createReadStream('favicon.ico').pipe(response);
+    } else if (request.url == '/tape.png') {
+      response.setHeader('Content-Type', 'image/png');
+      fs.createReadStream('tape.png').pipe(response);
     }
   }
 })
@@ -20,7 +23,8 @@ const wss = new webSocket.Server({ server })
 
 wss.on('connection', function connection(ws, request) {
   ws.on('message', function incoming(message) {
-    let data = new Uint8Array(message.match(/.{1,2}/g).map(x => parseInt(x, 16)))
+    // let data = new Uint8Array(message.match(/.{1,2}/g).map(x => parseInt(x, 16)))
+    let data = new Uint8Array(message)
 
     wss.clients.forEach(function each(client) {
       if (client !== ws && client.readyState === webSocket.OPEN) {
@@ -30,4 +34,4 @@ wss.on('connection', function connection(ws, request) {
   })
 })
 
-server.listen(8080)
+server.listen(process.env.PORT || 8080)
