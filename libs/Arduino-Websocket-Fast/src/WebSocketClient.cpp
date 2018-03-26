@@ -420,7 +420,7 @@ void WebSocketClient::sendData(String str, uint8_t opcode, bool fast) {
   }
 }
 
-void WebSocketClient::sendData(const uint8_t bytes[], size_t size, uint8_t opcode, bool fast) {
+void WebSocketClient::sendData(const uint8_t *bytes, size_t size, uint8_t opcode, bool fast) {
   if (socket_client->connected()) {
     if (fast) {
       sendEncodedDataFast(bytes, size, opcode);
@@ -478,7 +478,7 @@ void WebSocketClient::sendEncodedData(char *str, uint8_t opcode) {
   }
 }
 
-void WebSocketClient::sendEncodedData(uint8_t bytes[], size_t size, uint8_t opcode) {
+void WebSocketClient::sendEncodedData(uint8_t *bytes, size_t size, uint8_t opcode) {
   uint8_t mask[4];
 
   socket_client->write(opcode | WS_FIN);
@@ -512,7 +512,7 @@ void WebSocketClient::sendEncodedData(uint8_t bytes[], size_t size, uint8_t opco
   }
 }
 
-void WebSocketClient::sendEncodedDataFast(uint8_t bytes[], size_t size, uint8_t opcode) {
+void WebSocketClient::sendEncodedDataFast(uint8_t *bytes, size_t size, uint8_t opcode) {
   uint8_t mask[4];
   int buffer_size = size + 1;
   int buffer_index = 0;
@@ -522,6 +522,7 @@ void WebSocketClient::sendEncodedDataFast(uint8_t bytes[], size_t size, uint8_t 
   } else {
     buffer_size += 1;
   }
+
   if (WS_MASK > 0) {
     buffer_size += 4;
   }
@@ -532,7 +533,7 @@ void WebSocketClient::sendEncodedDataFast(uint8_t bytes[], size_t size, uint8_t 
 
   // NOTE: no support for > 16-bit sized messages
   if (size > 125) {
-    buffer[buffer_index++] = (uint8_t) (opcode | WS_FIN);
+    buffer[buffer_index++] = (uint8_t) (WS_SIZE16 | WS_MASK);
     buffer[buffer_index++] = (uint8_t) (size >> 8);
     buffer[buffer_index++] = (uint8_t) (size & 0xFF);
   } else {
@@ -559,7 +560,7 @@ void WebSocketClient::sendEncodedDataFast(uint8_t bytes[], size_t size, uint8_t 
     buffer[buffer_index++] = bytes[i];
   }
 
-  socket_client->write((uint8_t*) buffer, buffer_size);
+  socket_client->write(buffer, buffer_size);
 }
 
 void WebSocketClient::sendEncodedDataFast(char *str, uint8_t opcode) {
@@ -584,7 +585,7 @@ void WebSocketClient::sendEncodedDataFast(char *str, uint8_t opcode) {
 
   // NOTE: no support for > 16-bit sized messages
   if (size > 125) {
-    sprintf(tmp, "%c", (char)(WS_SIZE16 | WS_MASK));
+    sprintf(tmp, "%c", (char) (WS_SIZE16 | WS_MASK));
     strcat(buf, tmp);
     sprintf(tmp, "%c", (char) (size >> 8));
     strcat(buf, tmp);
