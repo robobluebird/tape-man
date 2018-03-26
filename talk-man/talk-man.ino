@@ -19,9 +19,9 @@ char hex[64];
 char* sprinter = hex;
 
 void setup() {
-  for (int i = 0; i < 8; i++) {
-    pinMode(i, OUTPUT);
-  }
+//  for (int i = 0; i < 8; i++) {
+//    pinMode(i, OUTPUT);
+//  }
 
   Serial.begin(9600);
 
@@ -29,20 +29,18 @@ void setup() {
     ;
   }
 
-  delay(1000); // give the ethernet module time to boot up:
-
-  // start the Ethernet connection using a fixed IP address and DNS server:
-  Ethernet.begin(mac, ip);
-
-  Serial.print("My IP address: ");
-  Serial.println(Ethernet.localIP());
-
-  makeConnection();
+//  delay(1000); // give the ethernet module time to boot up:
+//
+//  // start the Ethernet connection using a fixed IP address and DNS server:
+//  Ethernet.begin(mac, ip);
+//
+//  Serial.print("My IP address: ");
+//  Serial.println(Ethernet.localIP());
+//
+//  makeConnection();
 }
 
 void makeConnection() {
-  Serial.println("hello");
-
   // Connect to the websocket server
   if (client.connect(server, 80)) {
     Serial.println("Connected");
@@ -83,17 +81,17 @@ void loop() {
     digitalWrite(13, LOW);
   }
 
-  sprinter += sprintf(sprinter, "%02X", analogValue);
+//  sprinter += sprintf(sprinter, "%02X", analogValue);
+//
+//  if (sprinter >= hex + 64) {
+//    if (client.connected()) {
+//      webSocketClient.sendData(hex);
+//    } else {
+//      makeConnection();
+//    }
+//
+//    sprinter = hex;
+//  }
 
-  if (sprinter >= hex + 64) {
-    if (client.connected()) {
-      webSocketClient.sendData(hex);
-    } else {
-      makeConnection();
-    }
-
-    sprinter = hex;
-  }
-
-  PORTD = analogValue;
+//  PORTD = analogValue;
 }
