@@ -78,7 +78,7 @@
         let currentBuffer = null
         let currentBufferSource = null
         let playing = false
-        let aGiantBuffer = context.createBuffer(1, 28800000, 8000)
+        let aGiantBuffer = context.createBuffer(1, 25200000, 7000) // 1 hour
 
         currentBufferSource = context.createBufferSource()
         currentBufferSource.connect(context.destination)
@@ -114,36 +114,39 @@
           return ((intValue * 2.0) / 255.0) + -1
         }
 
-          //   if (playing) {
-          //     time += sources[sources.length - 1].buffer.duration
-          //     currentBufferSource.start(time)
-          //   } else if (sources.length > 5) {
-          //     time = context.currentTime
-          //
-          //     for (var i = 0; i < sources.length; i++) {
-          //       time += sources[i].buffer.duration
-          //       sources[i].start(time)
-          //     }
-          //
-          //     playing = true
-          //
-          //     document.getElementById('indicator').style.display = ''
-          //   }
-          //
-          //   sources.push(currentBufferSource)
-          //
-          //   offset = 0
-          //   currentBuffer = context.createBuffer(1, 8000, 8000)
-          //   currentBufferSource = context.createBufferSource()
-          //   currentBufferSource.connect(context.destination)
-          //   currentBufferSource.buffer = currentBuffer
-          // } else if (currentBufferSource == null) {
-          //   offset = 0
-          //   currentBuffer = context.createBuffer(1, 8000, 8000)
-          //   currentBufferSource = context.createBufferSource()
-          //   currentBufferSource.connect(context.destination)
-          //   currentBufferSource.buffer = currentBuffer
-          // }
+        // if (offset >= 7200) {
+        //   if (playing) {
+        //     time += sources[sources.length - 1].buffer.duration
+        //     currentBufferSource.start(time)
+        //   } else if (sources.length > 5) {
+        //     time = context.currentTime
+        //
+        //     for (var i = 0; i < sources.length; i++) {
+        //       time += sources[i].buffer.duration
+        //       sources[i].start(time)
+        //     }
+        //
+        //     playing = true
+        //
+        //     document.getElementById('indicator').style.display = ''
+        //   }
+        //
+        //   sources.push(currentBufferSource)
+        //
+        //   offset = 0
+        //   currentBuffer = context.createBuffer(1, 7200, 7200)
+        //   currentBufferSource = context.createBufferSource()
+        //   currentBufferSource.connect(context.destination)
+        //   currentBufferSource.buffer = currentBuffer
+        // } else if (currentBuffer == null) {
+        //   offset = 0
+        //   currentBuffer = context.createBuffer(1, 7200, 7200)
+        //   currentBufferSource = context.createBufferSource()
+        //   currentBufferSource.connect(context.destination)
+        //   currentBufferSource.buffer = currentBuffer
+        // }
+        //
+        // currentBuffer.copyToChannel(convertedBytes, 0, offset)
       })()
     </script>
   </body>
