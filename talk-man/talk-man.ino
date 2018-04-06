@@ -9,8 +9,8 @@ WebSocketClient webSocketClient;
 
 // Just make up a MAC address
 byte mac[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED };
-char server[] = "10.17.108.5";
-uint8_t bytes[125];
+char server[] = "10.17.108.73";
+uint8_t bytes[248];
 int byteIndex = 0;
 
 char wsPath[] = "/";
@@ -77,7 +77,7 @@ void loop() {
 
   bytes[byteIndex] = analogValue;
 
-  if (byteIndex >= 124) {
+  if (byteIndex >= 247) {
     if (client.connected()) {
       webSocketClient.sendData(bytes, sizeof(bytes));
     } else {
