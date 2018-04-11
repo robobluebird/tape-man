@@ -1,5 +1,5 @@
 const WebSocket = require('ws')
-const ws = new WebSocket('ws://10.17.105.5')
+const ws = new WebSocket('ws://10.17.106.158:8080')
 
 let tones = [generateTone(440)]
 let readyToSend = []

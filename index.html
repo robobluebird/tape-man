@@ -56,12 +56,6 @@
   </head>
   <body style="text-align:center;">
     <div class="bg">
-      <!-- <div class="flex&#45;container"> -->
-      <!--   <div class="row"> -->
-      <!--     <div id="play" class="flex&#45;item" style="background&#45;color: lawngreen">play</div> -->
-      <!--     <div id="stop" class="flex&#45;item">stop</div> -->
-      <!--   </div> -->
-      <!-- </div> -->
       <div id="indicator"></div>
     </div>
     <script type="text/javascript">
@@ -75,23 +69,52 @@
 
         var time       = 0
         let offset     = 0
-        let currentBuffer = null
-        let currentBufferSource = null
+        let aGiantBuffer;
+        let bufferSource;
         let playing = false
-        let aGiantBuffer = context.createBuffer(1, 25200000, 7250) // 1 hour
-
-        currentBufferSource = context.createBufferSource()
-        currentBufferSource.connect(context.destination)
-        currentBufferSource.buffer = aGiantBuffer
-
-        var sources    = []
+        let startedPlayingAt;
+        let check;
+        var lastReceived = Date.now()
 
         socket.addEventListener('message', function (event) {
+          if (lastReceived == null || Date.now() - lastReceived > 1000)
+            reset()
+
+          lastReceived = Date.now()
+
           loadSomeBytes(new Uint8Array(event.data))
         })
 
+        const tellSomething = () => {
+          if ((Date.now() - startedPlayingAt) * 8 > offset)
+            reset()
+        }
+
+        const reset = () => {
+          if (bufferSource) {
+            bufferSource.stop()
+            playing = false
+            clearInterval(check)
+          }
+
+          offset = 0
+          aGiantBuffer = context.createBuffer(1, 26100000, 7250) // 1 hour
+          bufferSource = context.createBufferSource()
+
+          bufferSource.connect(context.destination)
+          bufferSource.buffer = aGiantBuffer
+        }
+
+        const play = () => {
+          playing = true
+          bufferSource.start()
+          startedPlayingAt = Date.now()
+
+          check = setInterval(tellSomething, 1000)
+        }
+
         const loadSomeBytes = (byteArray) => {
-          if (offset >= 28800000)
+          if (offset >= 26100000)
             return
 
           let convertedBytes = new Float32Array(byteArray.byteLength)
@@ -100,10 +123,8 @@
             convertedBytes[i] = squash(byteArray[i])
           }
 
-          if (offset >= 8000 && !playing) {
-            playing = true
-            currentBufferSource.start()
-          }
+          if (offset >= 8000 && !playing)
+            play()
 
           aGiantBuffer.copyToChannel(convertedBytes, 0, offset)
 
@@ -113,40 +134,6 @@
         const squash = (intValue) => {
           return ((intValue * 2.0) / 255.0) + -1
         }
-
-        // if (offset >= 7200) {
-        //   if (playing) {
-        //     time += sources[sources.length - 1].buffer.duration
-        //     currentBufferSource.start(time)
-        //   } else if (sources.length > 5) {
-        //     time = context.currentTime
-        //
-        //     for (var i = 0; i < sources.length; i++) {
-        //       time += sources[i].buffer.duration
-        //       sources[i].start(time)
-        //     }
-        //
-        //     playing = true
-        //
-        //     document.getElementById('indicator').style.display = ''
-        //   }
-        //
-        //   sources.push(currentBufferSource)
-        //
-        //   offset = 0
-        //   currentBuffer = context.createBuffer(1, 7200, 7200)
-        //   currentBufferSource = context.createBufferSource()
-        //   currentBufferSource.connect(context.destination)
-        //   currentBufferSource.buffer = currentBuffer
-        // } else if (currentBuffer == null) {
-        //   offset = 0
-        //   currentBuffer = context.createBuffer(1, 7200, 7200)
-        //   currentBufferSource = context.createBufferSource()
-        //   currentBufferSource.connect(context.destination)
-        //   currentBufferSource.buffer = currentBuffer
-        // }
-        //
-        // currentBuffer.copyToChannel(convertedBytes, 0, offset)
       })()
     </script>
   </body>
