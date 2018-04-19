@@ -100,7 +100,7 @@ public:
     // Write data to the stream
     void sendData(const char *str, uint8_t opcode = WS_OPCODE_TEXT, bool fast = true);
     void sendData(String str, uint8_t opcode = WS_OPCODE_TEXT, bool fast = true);
-    void sendData(const uint8_t *bytes, size_t size, uint8_t opcode = WS_OPCODE_BINARY, bool fast = true);
+    void sendData(uint8_t *bytes, size_t size, uint8_t opcode = WS_OPCODE_BINARY, bool fast = true);
 
     bool issocketio;
     char *path;
@@ -135,7 +135,5 @@ private:
     void sendEncodedDataFast(String str, uint8_t opcode);
     void sendEncodedDataFast(uint8_t *bytes, size_t size, uint8_t opcode);
 };
-
-
 
 #endif

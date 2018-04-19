@@ -420,7 +420,7 @@ void WebSocketClient::sendData(String str, uint8_t opcode, bool fast) {
   }
 }
 
-void WebSocketClient::sendData(const uint8_t *bytes, size_t size, uint8_t opcode, bool fast) {
+void WebSocketClient::sendData(uint8_t *bytes, size_t size, uint8_t opcode, bool fast) {
   if (socket_client->connected()) {
     if (fast) {
       sendEncodedDataFast(bytes, size, opcode);
@@ -531,7 +531,12 @@ void WebSocketClient::sendEncodedDataFast(uint8_t *bytes, size_t size, uint8_t o
 
   buffer[buffer_index++] = (uint8_t) (opcode | WS_FIN);
 
-  // NOTE: no support for > 16-bit sized messages
+  // WS frames can have many lengths, but they must be expressed
+  // in terms of 8, 16, or 64 bit ints. We are NOT supporting the
+  // 64 bit messages because the arduino can't handle it anyway.
+  // In fact, we can not really support 16 bit messages either because
+  // according to the header file the arduino will choke if we try
+  // to send frames larger than 256 bytes. hmm.
   if (size > 125) {
     buffer[buffer_index++] = (uint8_t) (WS_SIZE16 | WS_MASK);
     buffer[buffer_index++] = (uint8_t) (size >> 8);

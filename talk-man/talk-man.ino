@@ -9,14 +9,18 @@ WiFiClient client;
 WebSocketClient webSocketClient;
 
 char server[] = "tape-man.herokuapp.com";
-uint8_t bytes[2000];
+uint8_t bytes[1000];
 int byteIndex = 0;
 
 char wsPath[] = "/";
 char* pathPtr = wsPath;
 char* hostPtr = server;
-const char* ssid = "WE WORK";
-const char* password = "P@ssw0rd";
+
+// const char* ssid = "WE WORK";
+// const char* password = "P@ssw0rd";
+
+const char* ssid = "Fios-HEUK7";
+const char* password = "ton4660bug682deck";
 
 void setup() {
   webSocketClient.path = pathPtr;
@@ -90,7 +94,7 @@ void loop() {
 
   bytes[byteIndex] = analogValue;
 
-  if (byteIndex >= 1999) {
+  if (byteIndex >= 999) {
     if (client.connected()) {
       webSocketClient.sendData(bytes, sizeof(bytes));
     } else {
