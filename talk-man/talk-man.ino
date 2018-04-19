@@ -26,7 +26,6 @@ void setup() {
   pinMode(5, OUTPUT);
 
   Serial.begin(115200);
-
   while (!Serial) {}
 
   Serial.println();
@@ -56,8 +55,11 @@ void makeConnection() {
   int tries = 0;
 
   while (!client.connect(server, 80) && tries <= 10) {
-    Serial.println(F("Failed. Trying again...connecting to tape-man..."));
+    Serial.println(F("Failed. Trying again in 3..."));
     delay(1000);
+    Serial.println(F("2..."));
+    delay(1000);
+    Serial.println(F("1..."));
     tries++;
   }
 
@@ -78,10 +80,7 @@ void makeConnection() {
 }
 
 void loop() {
-  uint8_t analogValue = (analogRead(A0) + 1) / 4 - 1;
-
-  if (analogValue < 0)
-    analogValue = 0;
+  uint8_t analogValue = map(analogRead(A0), 0, 1023, 0, 255);
 
   if (analogValue == 0 || analogValue == 255) {
     digitalWrite(5, HIGH);
@@ -95,8 +94,12 @@ void loop() {
     if (client.connected()) {
       webSocketClient.sendData(bytes, sizeof(bytes));
     } else {
-      Serial.println(F("I'm sorry that you have failed"));
-      while (1) {}
+      Serial.println(F("I'm sorry that you have failed...trying again in 3..."));
+      delay(1000);
+      Serial.println(F("2..."));
+      delay(1000);
+      Serial.println(F("1..."));
+      makeConnection();
     }
 
     byteIndex = 0;
