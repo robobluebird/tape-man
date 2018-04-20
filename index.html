@@ -74,7 +74,7 @@
         let playing = false
         let startedPlayingAt;
         let check;
-        var lastReceived = Date.now()
+        let lastReceived;
 
         socket.addEventListener('message', function (event) {
           if (lastReceived == null || Date.now() - lastReceived > 1000)
@@ -86,21 +86,16 @@
         })
 
         const tellSomething = () => {
-          if ((Date.now() - startedPlayingAt) * 8 > offset)
+          if ((Date.now() - startedPlayingAt) * 8 >= offset)
             reset()
         }
 
         const reset = () => {
-          if (bufferSource) {
-            bufferSource.stop()
-            playing = false
-            clearInterval(check)
-          }
-
+          playing = false
+          clearInterval(check)
           offset = 0
-          aGiantBuffer = context.createBuffer(1, 26100000, 7250) // 1 hour
+          aGiantBuffer = context.createBuffer(1, 26100000, 8000) // 1 hour
           bufferSource = context.createBufferSource()
-
           bufferSource.connect(context.destination)
           bufferSource.buffer = aGiantBuffer
         }
