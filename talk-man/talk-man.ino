@@ -16,11 +16,11 @@ char wsPath[] = "/";
 char* pathPtr = wsPath;
 char* hostPtr = server;
 
- const char* ssid = "WE WORK";
- const char* password = "P@ssw0rd";
+// const char* ssid = "WE WORK";
+// const char* password = "P@ssw0rd";
 
-//const char* ssid = "Fios-HEUK7";
-//const char* password = "ton4660bug682deck";
+const char* ssid = "Fios-HEUK7";
+const char* password = "ton4660bug682deck";
 
 void setup() {
   webSocketClient.path = pathPtr;
