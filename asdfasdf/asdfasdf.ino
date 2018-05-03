@@ -11,14 +11,21 @@ String networks[] = { "one", "two", "three", "four", "five", "six", "seven", "ei
 int selectedNetworkIndex = 0;
 int selectedCharacterIndex = 0;
 String ssid = "";
-int oldPosition  = -999;
+int oldPosition  = 0;
 bool selectingNetwork = false;
 bool selectingPassword = false;
+bool readyForClick = true;
+String password = "";
+const String chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()-_+=~`[]{}|\\:;\"'<>,.?/";
 
 Encoder myEnc(0, 4);
+const int encoderClick = 13;
 
 void setup() {
   Serial.begin(115200);
+
+  pinMode(encoderClick, INPUT);
+  
   display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
   display.clearDisplay();
   display.setTextWrap(false);
@@ -27,19 +34,15 @@ void setup() {
   printPasswordSelection();
 }
 
-void printNetworks(int startIndex, bool highlight) {
+void printNetworks() {
   display.clearDisplay();
   display.setTextSize(1);
   display.setTextColor(WHITE);
   display.setCursor(0,0);
   display.println("Choose a network");
-  display.display();
-  
-  if (startIndex >= 10)
-    startIndex = 10 - 1;
     
-  for (int i = startIndex; i < startIndex + 3; i++) {
-    if (highlight && i == startIndex && startIndex < 10) {
+  for (int i = selectedNetworkIndex; i < selectedNetworkIndex + 3; i++) {
+    if (i == selectedNetworkIndex) {
       display.setTextColor(BLACK, WHITE);
     } else {
       display.setTextColor(WHITE);
@@ -50,27 +53,33 @@ void printNetworks(int startIndex, bool highlight) {
     } else {
       display.println("");
     }
-    
-    display.display();
   }
+
+  display.display();
 }
 
 void selectNetwork() {
   ssid = networks[selectedNetworkIndex];
 }
 
-void shiftUp() {
-  if (selectedNetworkIndex < 9) {
-    selectedNetworkIndex += 1;
-    printNetworks(selectedNetworkIndex, true);
+void shiftUp(int amount = 1) {
+  if (selectedNetworkIndex + amount > 9) {
+    selectedNetworkIndex = 9;
+  } else {
+    selectedNetworkIndex += amount;
   }
+  
+  printNetworks();
 }
 
-void shiftDown() {
-  if (selectedNetworkIndex > 0) {
-    selectedNetworkIndex -= 1;
-    printNetworks(selectedNetworkIndex, true);
+void shiftDown(int amount = 1) {
+  if (selectedNetworkIndex - amount < 0) {
+    selectedNetworkIndex = 0;
+  } else {
+    selectedNetworkIndex -= amount;
   }
+  
+  printNetworks();
 }
 
 void printPasswordSelection() {
@@ -79,11 +88,10 @@ void printPasswordSelection() {
   display.setTextColor(WHITE);
   display.setCursor(0,0);
   display.println("Enter password!");
-  display.println();
+  display.println(password);
   display.println();
 
   int startingIndex = 0;
-  String chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()-_+=~`[]{}|\\:;\"'<>,.?/";
 
   for (int i = selectedCharacterIndex - 8; i < selectedCharacterIndex; i++) {
     if (i >= 0) {
@@ -104,21 +112,29 @@ void printPasswordSelection() {
   display.display();
 }
 
-void shiftRight() {
-  if (selectedCharacterIndex < 93) {
-    selectedCharacterIndex += 1;
-    printPasswordSelection();
+void shiftRight(int amount = 1) {
+  if (selectedCharacterIndex + amount > 93) {
+    selectedCharacterIndex = 93;
+  } else {
+    selectedCharacterIndex += amount;
   }
+
+  printPasswordSelection();
 }
 
-void shiftLeft() {
-  if (selectedCharacterIndex > 0) {
-    selectedCharacterIndex -= 1;
-    printPasswordSelection();
+void shiftLeft(int amount = 1) {
+  if (selectedCharacterIndex - amount < 0) {
+    selectedCharacterIndex = 0;
+  } else {
+    selectedCharacterIndex -= amount;
   }
+
+  printPasswordSelection();
 }
 
-void selectedCharacter() {
+void selectCharacter() {
+  password += chars.charAt(selectedCharacterIndex);
+  printPasswordSelection();
 }
 
 void deleteCharacter() {
@@ -131,44 +147,40 @@ void showNetworkError() {
 }
 
 void loop() {
-  while (selectedCharacterIndex < 93) {
-    shiftRight();
-    delay(100);
-  }
+  if (selectingNetwork) {
+    int newPosition = myEnc.read();
 
-  while (selectedCharacterIndex > 0) {
-    shiftLeft();
-    delay(100);
+    if (newPosition != oldPosition && newPosition % 4 == 0) {
+      if (newPosition > oldPosition) {
+        shiftUp();
+      } else {
+        shiftDown();
+      }
+
+      oldPosition = newPosition;
+    } else if (digitalRead(encoderClick) == LOW && readyForClick) {
+      readyForClick = false;
+      selectCharacter();
+      digitalWrite(5, HIGH);
+    } else if (digitalRead(encoderClick) == HIGH && !readyForClick) {
+      readyForClick = true;
+    }
+  } else if (selectingPassword) {
+    int newPosition = myEnc.read();
+
+    if (newPosition != oldPosition && newPosition % 4 == 0) {
+      if (newPosition > oldPosition) {
+        shiftLeft();
+      } else {
+        shiftRight();
+      }
+
+      oldPosition = newPosition;
+    } else if (digitalRead(encoderClick) == LOW && readyForClick) {
+      readyForClick = false;
+      selectCharacter();
+    }
+  } else {
   }
-//  if (selectingNetwork) {
-//    int newPosition = myEnc.read();
-//
-//    if (newPosition != oldPosition) {
-//      if (newPosition > oldPosition) {
-//        shiftUp();
-//      } else {
-//        shiftDown();
-//      }
-//
-//      oldPosition = newPosition;
-//      
-//      Serial.println(newPosition);
-//    }
-//  } else if (selectingPassword) {
-//    int newPosition = myEnc.read();
-//
-//    if (newPosition != oldPosition) {
-//      if (newPosition > oldPosition) {
-//        shiftRight();
-//      } else {
-//        shiftLeft();
-//      }
-//
-//      oldPosition = newPosition;
-//      
-//      Serial.println(newPosition);
-//    }
-//  } else {
-//  }
 }
 
