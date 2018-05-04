@@ -12,6 +12,9 @@ int selectedNetworkIndex = 0;
 int selectedCharacterIndex = 0;
 String ssid = "";
 int oldPosition  = 0;
+int lastClickTime = millis();
+int lastScrollTime = millis();
+int pwdAccel = 1;
 bool selectingNetwork = false;
 bool selectingPassword = false;
 bool readyForClick = true;
@@ -25,7 +28,7 @@ void setup() {
   Serial.begin(115200);
 
   pinMode(encoderClick, INPUT);
-  
+
   display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
   display.clearDisplay();
   display.setTextWrap(false);
@@ -38,9 +41,9 @@ void printNetworks() {
   display.clearDisplay();
   display.setTextSize(1);
   display.setTextColor(WHITE);
-  display.setCursor(0,0);
+  display.setCursor(0, 0);
   display.println("Choose a network");
-    
+
   for (int i = selectedNetworkIndex; i < selectedNetworkIndex + 3; i++) {
     if (i == selectedNetworkIndex) {
       display.setTextColor(BLACK, WHITE);
@@ -68,7 +71,7 @@ void shiftUp(int amount = 1) {
   } else {
     selectedNetworkIndex += amount;
   }
-  
+
   printNetworks();
 }
 
@@ -78,7 +81,7 @@ void shiftDown(int amount = 1) {
   } else {
     selectedNetworkIndex -= amount;
   }
-  
+
   printNetworks();
 }
 
@@ -86,9 +89,15 @@ void printPasswordSelection() {
   display.clearDisplay();
   display.setTextSize(1);
   display.setTextColor(WHITE);
-  display.setCursor(0,0);
+  display.setCursor(0, 0);
   display.println("Enter password!");
-  display.println(password);
+
+  if (password.length() > 21) {
+    display.println(password.substring(password.length() - 21));
+  } else {
+    display.println(password);
+  }
+
   display.println();
 
   int startingIndex = 0;
@@ -152,35 +161,42 @@ void loop() {
 
     if (newPosition != oldPosition && newPosition % 4 == 0) {
       if (newPosition > oldPosition) {
-        shiftUp();
+        shiftUp(pwdAccel);
       } else {
         shiftDown();
       }
 
       oldPosition = newPosition;
-    } else if (digitalRead(encoderClick) == LOW && readyForClick) {
-      readyForClick = false;
-      selectCharacter();
-      digitalWrite(5, HIGH);
-    } else if (digitalRead(encoderClick) == HIGH && !readyForClick) {
-      readyForClick = true;
     }
   } else if (selectingPassword) {
     int newPosition = myEnc.read();
 
     if (newPosition != oldPosition && newPosition % 4 == 0) {
       if (newPosition > oldPosition) {
-        shiftLeft();
+        shiftLeft(pwdAccel);
       } else {
-        shiftRight();
+        shiftRight(pwdAccel);
       }
 
       oldPosition = newPosition;
-    } else if (digitalRead(encoderClick) == LOW && readyForClick) {
-      readyForClick = false;
-      selectCharacter();
+
+      if (millis() - lastScrollTime < 50) {
+        if (pwdAccel < 5)
+          pwdAccel += 1;
+      }
+      
+      lastScrollTime = millis();
+    } else {
+      if (millis() - lastScrollTime > 50)
+        pwdAccel = 1;
+
+      if (digitalRead(encoderClick) == LOW && readyForClick && millis() - lastClickTime > 500) {
+        lastClickTime = millis();
+        readyForClick = false;
+        selectCharacter();
+      } else if (digitalRead(encoderClick) == HIGH && !readyForClick) {
+        readyForClick = true;
+      }
     }
-  } else {
   }
 }
-
