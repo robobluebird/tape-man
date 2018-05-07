@@ -28,6 +28,7 @@ void setup() {
   Serial.begin(115200);
 
   pinMode(encoderClick, INPUT);
+  pinMode(5, OUTPUT);
 
   display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
   display.clearDisplay();
@@ -180,14 +181,14 @@ void loop() {
 
       oldPosition = newPosition;
 
-      if (millis() - lastScrollTime < 50) {
+      if (millis() - lastScrollTime < 100) {
         if (pwdAccel < 5)
           pwdAccel += 1;
       }
       
       lastScrollTime = millis();
     } else {
-      if (millis() - lastScrollTime > 50)
+      if (millis() - lastScrollTime > 100)
         pwdAccel = 1;
 
       if (digitalRead(encoderClick) == LOW && readyForClick && millis() - lastClickTime > 500) {
@@ -198,5 +199,13 @@ void loop() {
         readyForClick = true;
       }
     }
+  }
+
+  uint8_t analogValue = map(analogRead(A0), 0, 1023, 0, 255);
+
+  if (analogValue == 0 || analogValue == 255) {
+    digitalWrite(5, HIGH);
+  } else {
+    digitalWrite(5, LOW);
   }
 }
