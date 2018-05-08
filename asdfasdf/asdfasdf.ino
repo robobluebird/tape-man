@@ -16,12 +16,15 @@ String ssid = "";
 int oldPosition  = 0;
 int lastClickTime = millis();
 int lastScrollTime = millis();
-int pwdAccel = 1;
+int scroll = 1;
 bool selectingNetwork = false;
 bool selectingPassword = false;
-bool readyForClick = true;
+bool readyToBroadcast = false;
+bool broadcasting = false;
 String password = "";
 const String chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()-_+=~`[]{}|\\:;\"'<>,.?/";
+bool readyToClick = true;
+bool readyToPress = true;
 
 Encoder myEnc(0, 4);
 const int encoderClick = 13;
@@ -33,11 +36,12 @@ void setup() {
 
   pinMode(encoderClick, INPUT);
   pinMode(5, OUTPUT);
+  pinMode(12, INPUT);
 
   display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
 
   delay(100);
-  
+
   display.clearDisplay();
   display.setTextWrap(false);
 
@@ -51,29 +55,25 @@ void setup() {
   delay(2000);
 
   scanNetworks();
-  
-//  selectingPassword = true;
-//  printPasswordSelection();
 }
 
 void scanNetworks() {
   WiFi.mode(WIFI_STA);
   WiFi.disconnect();
   delay(100);
-  
+
   int n = WiFi.scanNetworks();
-  
+
   if (n == 0) {
     resetDisplay();
     display.println("No networks found.");
   } else {
     int len = (n > 50) ? 50 : n;
-    
+
     for (int i = 0; i < len; i++) {
       networks[i] = WiFi.SSID(i);
     }
 
-    selectingNetwork = true;
     showNetworks();
   }
 }
@@ -106,8 +106,13 @@ void resetDisplay() {
 }
 
 void showNetworks() {
-  resetDisplay();
+  selectingPassword = false;
+  selectingNetwork = true;
+  readyToBroadcast = false;
+  broadcasting = false;
   
+  resetDisplay();
+
   display.println("Choose a network");
 
   for (int i = selectedNetworkIndex; i < selectedNetworkIndex + 3; i++) {
@@ -125,10 +130,6 @@ void showNetworks() {
   }
 
   display.display();
-}
-
-void selectNetwork() {
-  ssid = networks[selectedNetworkIndex];
 }
 
 void shiftUp(int amount = 1) {
@@ -151,12 +152,15 @@ void shiftDown(int amount = 1) {
   showNetworks();
 }
 
-void printPasswordSelection() {
-  display.clearDisplay();
-  display.setTextSize(1);
-  display.setTextColor(WHITE);
-  display.setCursor(0, 0);
-  display.println("Enter password!");
+void showPasswordSelection() {
+  selectingPassword = true;
+  selectingNetwork = false;
+  readyToBroadcast = false;
+  broadcasting = false;
+  
+  resetDisplay();
+  
+  display.println("Enter password");
 
   if (password.length() > 21) {
     display.println(password.substring(password.length() - 21));
@@ -194,7 +198,7 @@ void shiftRight(int amount = 1) {
     selectedCharacterIndex += amount;
   }
 
-  printPasswordSelection();
+  showPasswordSelection();
 }
 
 void shiftLeft(int amount = 1) {
@@ -204,21 +208,59 @@ void shiftLeft(int amount = 1) {
     selectedCharacterIndex -= amount;
   }
 
-  printPasswordSelection();
+  showPasswordSelection();
 }
 
 void selectCharacter() {
   password += chars.charAt(selectedCharacterIndex);
-  printPasswordSelection();
+  showPasswordSelection();
 }
 
-void deleteCharacter() {
+void selectNetwork() {
+  ssid = networks[selectedNetworkIndex];
+
+  resetDisplay();
+
+  display.println(ssid);
+
+  display.display();
+
+  delay(1000);
+
+  showPasswordSelection();
 }
 
-void connectToNetwork() {
+void finishPassword() {
+  resetDisplay();
+
+  display.println("connecting...");
+  display.display();
+
+  WiFi.begin(ssid, password);
+
+  int attempts = 0;
+  
+  while (WiFi.status() != WL_CONNECTED && attempts < 20) {
+    delay(500);
+    display.print(".");
+    display.display();
+    attempts++;
+  }
+
+  if (Wifi.status() != WL_CONNECTED) {
+    resetDisplay();
+    display.println("failed to connect.");
+    display.display();
+    delay(1000);
+    ssid = "";
+    password = "";
+    scanNetworks();
+  } else {
+    showReadyToBroadcast();
+  }
 }
 
-void showNetworkError() {
+bool saveNetwork() {
 }
 
 void loop() {
@@ -227,41 +269,54 @@ void loop() {
 
     if (newPosition != oldPosition && newPosition % 4 == 0) {
       if (newPosition > oldPosition) {
-        shiftUp(pwdAccel);
+        shiftUp(scroll);
       } else {
-        shiftDown(pwdAccel);
+        shiftDown(scroll);
       }
 
       oldPosition = newPosition;
+    } else {
+      if (digitalRead(encoderClick) == LOW && readyToClick && millis() - lastClickTime > 500) {
+        readyToClick = false;
+        lastClickTime = millis();
+        selectNetwork();
+      } else if (digitalRead(encoderClick) == HIGH && !readyToClick) {
+        readyToClick = true;
+      }
     }
   } else if (selectingPassword) {
     int newPosition = myEnc.read();
 
     if (newPosition != oldPosition && newPosition % 4 == 0) {
       if (newPosition > oldPosition) {
-        shiftLeft(pwdAccel);
+        shiftLeft(scroll);
       } else {
-        shiftRight(pwdAccel);
+        shiftRight(scroll);
       }
 
       oldPosition = newPosition;
 
       if (millis() - lastScrollTime < 100) {
-        if (pwdAccel < 5)
-          pwdAccel += 1;
+        if (scroll < 5)
+          scroll += 1;
       }
 
       lastScrollTime = millis();
     } else {
       if (millis() - lastScrollTime > 100)
-        pwdAccel = 1;
+        scroll = 1;
 
-      if (digitalRead(encoderClick) == LOW && readyForClick && millis() - lastClickTime > 500) {
+      if (digitalRead(12) == HIGH && readyToPress) {
+        readyToPress = false;
+        finishPassword();
+      } else if (digitalRead(12) == LOW && !readyToPress) {
+        readyToPress = true;
+      } else if (digitalRead(encoderClick) == LOW && readyToClick && millis() - lastClickTime > 500) {
+        readyToClick = false;
         lastClickTime = millis();
-        readyForClick = false;
         selectCharacter();
-      } else if (digitalRead(encoderClick) == HIGH && !readyForClick) {
-        readyForClick = true;
+      } else if (digitalRead(encoderClick) == HIGH && !readyToClick) {
+        readyToClick = true;
       }
     }
   }
