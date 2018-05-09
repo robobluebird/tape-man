@@ -13,6 +13,7 @@ String networks[50];
 int selectedNetworkIndex = 0;
 int selectedCharacterIndex = 0;
 String ssid = "";
+String password = "";
 int oldPosition  = 0;
 int lastClickTime = millis();
 int lastScrollTime = millis();
@@ -21,7 +22,6 @@ bool selectingNetwork = false;
 bool selectingPassword = false;
 bool readyToBroadcast = false;
 bool broadcasting = false;
-String password = "";
 const String chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()-_+=~`[]{}|\\:;\"'<>,.?/";
 bool readyToClick = true;
 bool readyToPress = true;
@@ -31,7 +31,6 @@ const int encoderClick = 13;
 
 void setup() {
   Serial.begin(115200);
-
   EEPROM.begin(512);
 
   pinMode(encoderClick, INPUT);
@@ -48,13 +47,21 @@ void setup() {
   resetDisplay();
 
   display.println("hello.");
-  display.println("Scanning networks...");
 
   display.display();
 
   delay(2000);
 
-  scanNetworks();
+  if (readConnection()) {
+    connectToNetwork();
+  } else {
+    clearConnection();
+    resetDisplay();
+    display.println();
+    display.println("scanning networks...");
+    display.display();
+    scanNetworks();
+  }
 }
 
 void scanNetworks() {
@@ -66,6 +73,7 @@ void scanNetworks() {
 
   if (n == 0) {
     resetDisplay();
+
     display.println("No networks found.");
   } else {
     int len = (n > 50) ? 50 : n;
@@ -78,24 +86,71 @@ void scanNetworks() {
   }
 }
 
-bool savedNetwork() {
-
+bool clearConnection() {
+  for (int i = 0; i < 512; i++) {
+    EEPROM.write(i, '\0');
+  }
 }
 
-bool readNetwork() {
+bool readConnection() {
+  char check[3];
+  check[2] = '\0';
+  check[0] = char(EEPROM.read(0));
+  check[1] = char(EEPROM.read(1));
 
+  if (strcmp(check, ":)") != 0)
+    return false;
+
+  ssid = "";
+  password = "";
+
+  int index = 2;
+  char currentChar = char(EEPROM.read(index));
+
+  while (currentChar != '\0') {
+    ssid += currentChar;
+    index++;
+    currentChar = char(EEPROM.read(index));
+  }
+
+  Serial.println(ssid);
+
+  index++;
+  currentChar = char(EEPROM.read(index));
+
+  while (currentChar != '\0') {
+    password += currentChar;
+    index++;
+    currentChar = char(EEPROM.read(index));
+  }
+
+  Serial.println(password);
+
+  return ssid.length() > 0 && password.length() > 0;
 }
 
-bool readPassword() {
+bool writeConnection() {
+  int index = 2;
 
-}
+  EEPROM.write(0, ':');
+  EEPROM.write(1, ')');
 
-bool writeSSID() {
+  for (int i = 0; i < ssid.length(); i++) {
+    EEPROM.write(index, ssid.charAt(i));
+    index++;
+  }
 
-}
+  EEPROM.write(index, '\0');
+  index++;
 
-bool writePassword() {
+  for (int i = 0; i < password.length(); i++) {
+    EEPROM.write(index, password.charAt(i));
+    index++;
+  }
 
+  EEPROM.write(index, '\0');
+
+  return EEPROM.commit();
 }
 
 void resetDisplay() {
@@ -110,7 +165,7 @@ void showNetworks() {
   selectingNetwork = true;
   readyToBroadcast = false;
   broadcasting = false;
-  
+
   resetDisplay();
 
   display.println("Choose a network");
@@ -157,9 +212,9 @@ void showPasswordSelection() {
   selectingNetwork = false;
   readyToBroadcast = false;
   broadcasting = false;
-  
+
   resetDisplay();
-  
+
   display.println("Enter password");
 
   if (password.length() > 21) {
@@ -230,24 +285,31 @@ void selectNetwork() {
   showPasswordSelection();
 }
 
-void finishPassword() {
+void showError(String error) {
+
+}
+
+void connectToNetwork() {
+  WiFi.mode(WIFI_STA);
+  WiFi.disconnect();
+
   resetDisplay();
 
   display.println("connecting...");
   display.display();
 
-  WiFi.begin(ssid, password);
+  WiFi.begin(ssid.c_str(), password.c_str());
 
   int attempts = 0;
-  
-  while (WiFi.status() != WL_CONNECTED && attempts < 20) {
+
+  while (WiFi.status() != WL_CONNECTED && attempts < 30) {
     delay(500);
     display.print(".");
     display.display();
     attempts++;
   }
 
-  if (Wifi.status() != WL_CONNECTED) {
+  if (WiFi.status() != WL_CONNECTED) {
     resetDisplay();
     display.println("failed to connect.");
     display.display();
@@ -256,11 +318,24 @@ void finishPassword() {
     password = "";
     scanNetworks();
   } else {
-    showReadyToBroadcast();
+    if (writeConnection()) {
+      showReadyToBroadcast();
+    } else {
+      showError(":(");
+    }
   }
 }
 
-bool saveNetwork() {
+void showReadyToBroadcast() {
+  selectingPassword = false;
+  selectingNetwork = false;
+  readyToBroadcast = true;
+  broadcasting = false;
+
+  resetDisplay();
+
+  display.println("READY");
+  display.display();
 }
 
 void loop() {
@@ -308,7 +383,7 @@ void loop() {
 
       if (digitalRead(12) == HIGH && readyToPress) {
         readyToPress = false;
-        finishPassword();
+        connectToNetwork();
       } else if (digitalRead(12) == LOW && !readyToPress) {
         readyToPress = true;
       } else if (digitalRead(encoderClick) == LOW && readyToClick && millis() - lastClickTime > 500) {
@@ -319,13 +394,19 @@ void loop() {
         readyToClick = true;
       }
     }
-  }
+  } else if (readyToBroadcast) {
+    uint8_t analogValue = map(analogRead(A0), 0, 1023, 0, 255);
 
-  uint8_t analogValue = map(analogRead(A0), 0, 1023, 0, 255);
+    if (analogValue == 0 || analogValue == 255) {
+      digitalWrite(5, HIGH);
+    } else {
+      digitalWrite(5, LOW);
+    }
+    
+    if (broadcasting) {
 
-  if (analogValue == 0 || analogValue == 255) {
-    digitalWrite(5, HIGH);
-  } else {
-    digitalWrite(5, LOW);
+    } else {
+
+    }
   }
 }
