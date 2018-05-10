@@ -230,15 +230,14 @@ void showPasswordSelection() {
 
   resetDisplay();
 
-  display.println("Enter password");
+  display.println("enter password for:");
+  display.println(ssid);
 
   if (password.length() > 21) {
     display.println(password.substring(password.length() - 21));
   } else {
     display.println(password);
   }
-
-  display.println();
 
   int startingIndex = 0;
 
@@ -289,19 +288,13 @@ void selectCharacter() {
 void selectNetwork() {
   ssid = networks[selectedNetworkIndex];
 
-  resetDisplay();
-
-  display.println(ssid);
-
-  display.display();
-
-  delay(1000);
-
   showPasswordSelection();
 }
 
 void showError(String error) {
-
+  resetDisplay();
+  display.println(error);
+  display.display();
 }
 
 void showBroadcasting(bool b = false) {
