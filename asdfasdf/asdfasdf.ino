@@ -5,11 +5,23 @@
 #include <Encoder.h>
 #include <EEPROM.h>
 #include <ESP8266WiFi.h>
+#include <WebSocketClient.h>
 
 #define OLED_RESET 4
 Adafruit_SSD1306 display(OLED_RESET);
 
+WiFiClient client;
+WebSocketClient webSocketClient;
+
+char server[] = "tape-man.herokuapp.com";
+uint8_t bytes[250];
+int byteIndex = 0;
+
+char* pathPtr = "/";
+char* hostPtr = server;
+
 String networks[50];
+int networkCount = 0;
 int selectedNetworkIndex = 0;
 int selectedCharacterIndex = 0;
 String ssid = "";
@@ -30,6 +42,9 @@ Encoder myEnc(0, 4);
 const int encoderClick = 13;
 
 void setup() {
+  webSocketClient.path = pathPtr;
+  webSocketClient.host = hostPtr;
+  
   Serial.begin(115200);
   EEPROM.begin(512);
 
@@ -69,16 +84,16 @@ void scanNetworks() {
   WiFi.disconnect();
   delay(100);
 
-  int n = WiFi.scanNetworks();
+  networkCount = WiFi.scanNetworks();
 
-  if (n == 0) {
+  networkCount = networkCount > 50 ? 50 : networkCount;
+
+  if (networkCount == 0) {
     resetDisplay();
 
     display.println("No networks found.");
   } else {
-    int len = (n > 50) ? 50 : n;
-
-    for (int i = 0; i < len; i++) {
+    for (int i = 0; i < networkCount; i++) {
       networks[i] = WiFi.SSID(i);
     }
 
@@ -177,7 +192,7 @@ void showNetworks() {
       display.setTextColor(WHITE);
     }
 
-    if (i < 10) {
+    if (i < networkCount) {
       display.println(networks[i]);
     } else {
       display.println("");
@@ -188,8 +203,8 @@ void showNetworks() {
 }
 
 void shiftUp(int amount = 1) {
-  if (selectedNetworkIndex + amount > 9) {
-    selectedNetworkIndex = 9;
+  if (selectedNetworkIndex + amount >= networkCount) {
+    selectedNetworkIndex = networkCount - 1;
   } else {
     selectedNetworkIndex += amount;
   }
@@ -289,6 +304,19 @@ void showError(String error) {
 
 }
 
+void showBroadcasting(bool b = false) {
+  selectingPassword = false;
+  selectingNetwork = false;
+  readyToBroadcast = true;
+  broadcasting = b;
+
+  resetDisplay();
+
+  display.println("/////////////////////");
+  display.println(broadcasting ? "broadcasting!" : "not broadcasting yet");
+  display.display();
+}
+
 void connectToNetwork() {
   WiFi.mode(WIFI_STA);
   WiFi.disconnect();
@@ -302,12 +330,16 @@ void connectToNetwork() {
 
   int attempts = 0;
 
+  display.setTextWrap(true);
+  
   while (WiFi.status() != WL_CONNECTED && attempts < 30) {
     delay(500);
     display.print(".");
     display.display();
     attempts++;
   }
+
+  display.setTextWrap(false);
 
   if (WiFi.status() != WL_CONNECTED) {
     resetDisplay();
@@ -319,23 +351,60 @@ void connectToNetwork() {
     scanNetworks();
   } else {
     if (writeConnection()) {
-      showReadyToBroadcast();
+      showBroadcasting();
     } else {
       showError(":(");
     }
   }
 }
 
-void showReadyToBroadcast() {
-  selectingPassword = false;
-  selectingNetwork = false;
-  readyToBroadcast = true;
-  broadcasting = false;
-
+void showBroadcastingConnectionAttempt(String message = "confused...") {
   resetDisplay();
 
-  display.println("READY");
+  display.println("/////////////////////");
+  display.println(message);
+
   display.display();
+}
+
+void startBroadcasting() {
+  byteIndex = 0;
+  
+  showBroadcastingConnectionAttempt("finding tape-man...");
+
+  int tries = 0;
+
+  while (!client.connect(server, 80) && tries <= 10) {
+    showBroadcastingConnectionAttempt("failed, retry in 3...");
+    delay(1000);
+    display.println("2...");
+    display.display();
+    delay(1000);
+    display.println("1...");
+    display.display();
+    tries++;
+  }
+
+  if (tries == 10) {
+    showError("totally failed.");
+    while (1) {}
+  }
+
+  showBroadcastingConnectionAttempt("connected.");
+  display.println("shaking hands...");
+  display.display();
+
+  if (webSocketClient.handshake(client)) {
+    showBroadcasting(true);
+  } else {
+    showBroadcastingConnectionAttempt("handshake failed");
+    delay(2000);
+    showBroadcasting(false);
+  }
+}
+
+void stopBroadcasting() {
+  showBroadcasting(false);
 }
 
 void loop() {
@@ -402,11 +471,40 @@ void loop() {
     } else {
       digitalWrite(5, LOW);
     }
-    
+
     if (broadcasting) {
+      bytes[byteIndex] = analogValue;
 
+      if (byteIndex >= 249) {
+        if (client.connected()) {
+          webSocketClient.sendData(bytes, sizeof(bytes));
+        } else {
+          Serial.println(F("I'm sorry that you have failed...trying again in 3..."));
+          delay(1000);
+          Serial.println(F("2..."));
+          delay(1000);
+          Serial.println(F("1..."));
+          startBroadcasting();
+        }
+
+        byteIndex = 0;
+      } else {
+        byteIndex++;
+      }
+      
+      if (digitalRead(12) == HIGH && readyToPress) {
+        readyToPress = false;
+        stopBroadcasting();
+      } else if (digitalRead(12) == LOW && !readyToPress) {
+        readyToPress = true;
+      }
     } else {
-
+      if (digitalRead(12) == HIGH && readyToPress) {
+        readyToPress = false;
+        startBroadcasting();
+      } else if (digitalRead(12) == LOW && !readyToPress) {
+        readyToPress = true;
+      }
     }
   }
 }
