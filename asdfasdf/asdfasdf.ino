@@ -37,22 +37,10 @@ bool broadcasting = false;
 const String chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()-_+=~`[]{}|\\:;\"'<>,.?/";
 bool readyToPressBack = true;
 bool readyToPressForward = true;
+bool readyToPressEnter = true;
 
 Encoder myEnc(0, 4);
 const int encoderClick = 13;
-
-void showBroadcasting(bool b = false) {
-  selectingPassword = false;
-  selectingNetwork = false;
-  readyToBroadcast = true;
-  broadcasting = b;
-
-  resetDisplay();
-
-  display.println("/////////////////////");
-  display.println(broadcasting ? "broadcasting!" : "not broadcasting yet");
-  display.display();
-}
 
 void setup() {
   webSocketClient.path = pathPtr;
@@ -65,6 +53,7 @@ void setup() {
   pinMode(5, OUTPUT);
   pinMode(12, INPUT);
   pinMode(13, INPUT);
+  pinMode(16, INPUT);
 
   display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
 
@@ -81,21 +70,35 @@ void setup() {
 
   delay(2000);
 
-  // showBroadcasting(false);
+  clearConnection();
 
-    if (readConnection()) {
-      connectToNetwork();
-    } else {
-      clearConnection();
-      resetDisplay();
-      display.println();
-      display.println("scanning networks...");
-      display.display();
-      scanNetworks();
-    }
+  if (readConnection()) {
+    connectToNetwork();
+  } else {
+    scanNetworks();
+  }
+}
+
+void showBroadcasting(bool b) {
+  selectingPassword = false;
+  selectingNetwork = false;
+  readyToBroadcast = true;
+  broadcasting = b;
+
+  resetDisplay();
+
+  display.println("/////////////////////");
+  display.println(broadcasting ? "broadcasting!" : "not broadcasting yet");
+  display.display();
 }
 
 void scanNetworks() {
+  resetDisplay();
+    
+  display.println();
+  display.println("scanning networks...");
+  display.display();
+
   WiFi.mode(WIFI_STA);
   WiFi.disconnect();
   delay(100);
@@ -245,15 +248,16 @@ void showPasswordSelection() {
   broadcasting = false;
 
   resetDisplay();
-
-  display.println("enter password for:");
-  display.println(ssid);
+  display.print(ssid);
+  display.println(":");
 
   if (password.length() > 21) {
     display.println(password.substring(password.length() - 21));
   } else {
     display.println(password);
   }
+
+  display.println();
 
   int startingIndex = 0;
 
@@ -266,7 +270,14 @@ void showPasswordSelection() {
   }
 
   display.print("  ");
+  int16_t x = display.getCursorX();
+  int16_t y = display.getCursorY();
+  display.setCursor(x, y - 8);
+  display.setTextSize(2);
   display.print(chars.charAt(selectedCharacterIndex));
+  x = display.getCursorX();
+  display.setCursor(x, y);
+  display.setTextSize(1);
   display.print("  ");
 
   for (int i = selectedCharacterIndex + 1; i < 94; i++) {
@@ -305,12 +316,15 @@ void deleteCharacter() {
   if (password.length() > 0) {
     password.remove(password.length() - 1);
     showPasswordSelection();
+  } else {
+    scanNetworks();
   }
 }
 
 void selectNetwork() {
   ssid = networks[selectedNetworkIndex];
 
+  selectedCharacterIndex = 0;
   showPasswordSelection();
 }
 
@@ -335,7 +349,7 @@ void connectToNetwork() {
 
   display.setTextWrap(true);
 
-  while (WiFi.status() != WL_CONNECTED && attempts < 30) {
+  while ((WiFi.status() != WL_CONNECTED && attempts < 30) && WiFi.status() != WL_CONNECT_FAILED) {
     delay(500);
     display.print(".");
     display.display();
@@ -344,9 +358,19 @@ void connectToNetwork() {
 
   display.setTextWrap(false);
 
-  if (WiFi.status() != WL_CONNECTED) {
+  Serial.println(WiFi.status());
+
+  if (WiFi.status() == WL_CONNECT_FAILED) {
     resetDisplay();
-    display.println("failed to connect.");
+    display.println();
+    display.println("Incorrect password");
+    display.display();
+    delay(1000);
+    showPasswordSelection();
+  } else if (WiFi.status() != WL_CONNECTED) {
+    resetDisplay();
+    display.println();
+    display.println("Failed to connect");
     display.display();
     delay(1000);
     ssid = "";
@@ -354,7 +378,7 @@ void connectToNetwork() {
     scanNetworks();
   } else {
     if (writeConnection()) {
-      showBroadcasting();
+      showBroadcasting(false);
     } else {
       showError(":(");
     }
@@ -488,11 +512,11 @@ void loop() {
 void handleButtonPresses() {
   handleBackButtonPress();
   handleForwardButtonPress();
+  handleEnterButtonPress();
 }
 
 bool handleBackButtonPress() {
   if (digitalRead(13) == LOW && readyToPressBack) {
-    Serial.println("bip");
     readyToPressBack = false;
     performBackAction();
     return true;
@@ -510,6 +534,18 @@ bool handleForwardButtonPress() {
     return true;
   } else if (digitalRead(12) == LOW && !readyToPressForward) {
     readyToPressForward = true;
+  }
+
+  return false;
+}
+
+bool handleEnterButtonPress() {
+  if (digitalRead(16) == HIGH && readyToPressEnter) {
+    readyToPressEnter = false;
+    performEnterAction();
+    return true;
+  } else if (digitalRead(16) == LOW && !readyToPressEnter) {
+    readyToPressEnter = true;
   }
 
   return false;
@@ -534,6 +570,12 @@ void performForwardAction() {
     } else {
       startBroadcasting();
     }
+  }
+}
+
+void performEnterAction() {
+  if (selectingPassword) {
+    connectToNetwork();
   }
 }
 
