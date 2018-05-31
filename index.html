@@ -17,6 +17,8 @@
         background-position: center;
         background-repeat: no-repeat;
         background-size: cover;
+        -webkit-filter: grayscale(100%);
+        filter: grayscale(100%);
       }
       .flex-container {
         height: 100%;
@@ -60,7 +62,15 @@
       <div id="indicator"></div>
     </div>
     <script type="text/javascript">
-      document.getElementById('bg').onclick = () => {
+      let clickedIt = false;
+
+      let bg = document.getElementById('bg').onclick = (e) => {
+        if (clickedIt) return;
+
+        e.target.setAttribute('style', 'filter: none; -webkit-filter: none;');
+
+        clickedIt = true;
+
         const socket = new WebSocket(`ws://${location.host}`)
         const context = new AudioContext();
 
@@ -93,7 +103,7 @@
           playing = false
           clearInterval(check)
           offset = 0
-          aGiantBuffer = context.createBuffer(1, 26100000, 8000) // 1 hour
+          aGiantBuffer = context.createBuffer(1, 26100000, 6000) // 1 hour
           bufferSource = context.createBufferSource()
           bufferSource.connect(context.destination)
           bufferSource.buffer = aGiantBuffer

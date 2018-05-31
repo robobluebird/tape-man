@@ -13,8 +13,9 @@ Adafruit_SSD1306 display(OLED_RESET);
 WiFiClient client;
 WebSocketClient webSocketClient;
 
+// char server[] = "10.17.105.76";
 char server[] = "tape-man.herokuapp.com";
-uint8_t bytes[250];
+uint8_t bytes[8000];
 int byteIndex = 0;
 
 char* pathPtr = "/";
@@ -70,7 +71,7 @@ void setup() {
 
   delay(2000);
 
-  clearConnection();
+  // clearConnection();
 
   if (readConnection()) {
     connectToNetwork();
@@ -147,8 +148,6 @@ bool readConnection() {
     currentChar = char(EEPROM.read(index));
   }
 
-  Serial.println(ssid);
-
   index++;
   currentChar = char(EEPROM.read(index));
 
@@ -157,8 +156,6 @@ bool readConnection() {
     index++;
     currentChar = char(EEPROM.read(index));
   }
-
-  Serial.println(password);
 
   return ssid.length() > 0 && password.length() > 0;
 }
@@ -358,8 +355,6 @@ void connectToNetwork() {
 
   display.setTextWrap(false);
 
-  Serial.println(WiFi.status());
-
   if (WiFi.status() == WL_CONNECT_FAILED) {
     resetDisplay();
     display.println();
@@ -485,9 +480,11 @@ void loop() {
     if (broadcasting) {
       bytes[byteIndex] = analogValue;
 
-      if (byteIndex >= 249) {
+      if (byteIndex >= 7999) {
         if (client.connected()) {
+          float startTime = millis();
           webSocketClient.sendData(bytes, sizeof(bytes));
+          Serial.println(((double)millis() - startTime));
         } else {
           Serial.println(F("I'm sorry that you have failed...trying again in 3..."));
           delay(1000);
