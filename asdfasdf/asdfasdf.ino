@@ -1,5 +1,3 @@
-#include <SPI.h>
-#include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #include <Encoder.h>
@@ -80,6 +78,18 @@ void setup() {
   }
 }
 
+void loop() {
+  handleButtonPresses();
+  
+  if (selectingNetwork) {
+    handleNetworkSelection();
+  } else if (selectingPassword) {
+    handlePasswordSelection();
+  } else if (readyToBroadcast) {
+    handleBroadcasting();
+  }
+}
+
 void showBroadcasting(bool b) {
   selectingPassword = false;
   selectingNetwork = false;
@@ -95,7 +105,7 @@ void showBroadcasting(bool b) {
 
 void scanNetworks() {
   resetDisplay();
-    
+
   display.println();
   display.println("scanning networks...");
   display.display();
@@ -429,79 +439,73 @@ void stopBroadcasting() {
   showBroadcasting(false);
 }
 
-void loop() {
-  if (selectingNetwork) {
-    int newPosition = myEnc.read();
+void handleNetworkSelection() {
+  int newPosition = myEnc.read();
 
-    if (newPosition != oldPosition && newPosition % 4 == 0) {
-      if (newPosition > oldPosition) {
-        shiftUp(scroll);
-      } else {
-        shiftDown(scroll);
-      }
-
-      oldPosition = newPosition;
+  if (newPosition != oldPosition && newPosition % 4 == 0) {
+    if (newPosition > oldPosition) {
+      shiftUp(scroll);
     } else {
-      handleButtonPresses();
-    }
-  } else if (selectingPassword) {
-    int newPosition = myEnc.read();
-
-    if (newPosition != oldPosition && newPosition % 4 == 0) {
-      if (newPosition > oldPosition) {
-        shiftLeft(scroll);
-      } else {
-        shiftRight(scroll);
-      }
-
-      oldPosition = newPosition;
-
-      if (millis() - lastScrollTime < 100) {
-        if (scroll < 5)
-          scroll += 1;
-      }
-
-      lastScrollTime = millis();
-    } else {
-      if (millis() - lastScrollTime > 100)
-        scroll = 1;
-
-      handleButtonPresses();
-    }
-  } else if (readyToBroadcast) {
-    uint8_t analogValue = map(analogRead(A0), 0, 1023, 0, 255);
-
-    if (analogValue == 0 || analogValue == 255) {
-      digitalWrite(5, HIGH);
-    } else {
-      digitalWrite(5, LOW);
+      shiftDown(scroll);
     }
 
-    if (broadcasting) {
-      bytes[byteIndex] = analogValue;
+    oldPosition = newPosition;
+  }
+}
 
-      if (byteIndex >= 7999) {
-        if (client.connected()) {
-          float startTime = millis();
-          webSocketClient.sendData(bytes, sizeof(bytes));
-          Serial.println(((double)millis() - startTime));
-        } else {
-          Serial.println(F("I'm sorry that you have failed...trying again in 3..."));
-          delay(1000);
-          Serial.println(F("2..."));
-          delay(1000);
-          Serial.println(F("1..."));
-          startBroadcasting();
-        }
+void handlePasswordSelection() {
+  int newPosition = myEnc.read();
 
-        byteIndex = 0;
+  if (newPosition != oldPosition && newPosition % 4 == 0) {
+    if (newPosition > oldPosition) {
+      shiftLeft(scroll);
+    } else {
+      shiftRight(scroll);
+    }
+
+    oldPosition = newPosition;
+
+    if (millis() - lastScrollTime < 100) {
+      if (scroll < 5)
+        scroll += 1;
+    }
+
+    lastScrollTime = millis();
+  } else {
+    if (millis() - lastScrollTime > 100)
+      scroll = 1;
+  }
+}
+
+void handleBroadcasting() {
+  uint8_t analogValue = map(analogRead(A0), 0, 1023, 0, 255);
+
+  if (analogValue == 0 || analogValue == 255) {
+    digitalWrite(5, HIGH);
+  } else {
+    digitalWrite(5, LOW);
+  }
+
+  if (broadcasting) {
+    bytes[byteIndex] = analogValue;
+
+    if (byteIndex >= 7999) {
+      if (client.connected()) {
+        float startTime = millis();
+        webSocketClient.sendData(bytes, sizeof(bytes));
+        Serial.println(((double)millis() - startTime));
       } else {
-        byteIndex++;
+        Serial.println(F("I'm sorry that you have failed...trying again in 3..."));
+        delay(500);
+        Serial.println(F("2..."));
+        delay(500);
+        Serial.println(F("1..."));
+        startBroadcasting();
       }
 
-      handleButtonPresses();
+      byteIndex = 0;
     } else {
-      handleButtonPresses();
+      byteIndex++;
     }
   }
 }
@@ -575,4 +579,5 @@ void performEnterAction() {
     connectToNetwork();
   }
 }
+
 
