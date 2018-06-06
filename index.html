@@ -65,14 +65,14 @@
       let clickedIt = false;
 
       let bg = document.getElementById('bg').onclick = (e) => {
-        if (clickedIt) return;
+        if (clickedIt) return
 
-        e.target.setAttribute('style', 'filter: none; -webkit-filter: none;');
+        e.target.setAttribute('style', 'filter: none; -webkit-filter: none;')
 
-        clickedIt = true;
+        clickedIt = true
 
         const socket = new WebSocket(`ws://${location.host}`)
-        const context = new AudioContext();
+        const context = new AudioContext()
 
         socket.binaryType = 'arraybuffer'
 
@@ -103,7 +103,7 @@
           playing = false
           clearInterval(check)
           offset = 0
-          aGiantBuffer = context.createBuffer(1, 26100000, 6000) // 1 hour
+          aGiantBuffer = context.createBuffer(1, 26100000, 8000) // 1 hour
           bufferSource = context.createBufferSource()
           bufferSource.connect(context.destination)
           bufferSource.buffer = aGiantBuffer
