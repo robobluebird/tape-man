@@ -78,24 +78,23 @@
 
         var time       = 0
         let offset     = 0
-        let aGiantBuffer;
-        let bufferSource;
+        let aGiantBuffer = context.createBuffer(1, 26100000, 4000) // 1 hour
+        let bufferSource = context.createBufferSource()
         let playing = false
         let startedPlayingAt;
         let check;
-        let lastReceived;
+
+        bufferSource.connect(context.destination)
+        bufferSource.buffer = aGiantBuffer
 
         socket.addEventListener('message', function (event) {
-          if (lastReceived == null || Date.now() - lastReceived > 1000)
-            reset()
-
-          lastReceived = Date.now()
-
           loadSomeBytes(new Uint8Array(event.data))
         })
 
         const tellSomething = () => {
-          if ((Date.now() - startedPlayingAt) * 8 >= offset)
+          console.log((Date.now() - startedPlayingAt) * 4)
+          console.log(offset)
+          if ((Date.now() - startedPlayingAt) * 4 >= offset)
             reset()
         }
 
@@ -103,17 +102,17 @@
           playing = false
           clearInterval(check)
           offset = 0
-          aGiantBuffer = context.createBuffer(1, 26100000, 8000) // 1 hour
+          aGiantBuffer = context.createBuffer(1, 26100000, 4000) // 1 hour
           bufferSource = context.createBufferSource()
           bufferSource.connect(context.destination)
           bufferSource.buffer = aGiantBuffer
         }
 
         const play = () => {
-          playing = true
+          console.log('play')
           bufferSource.start()
+          playing = true
           startedPlayingAt = Date.now()
-
           check = setInterval(tellSomething, 1000)
         }
 
@@ -127,12 +126,12 @@
             convertedBytes[i] = squash(byteArray[i])
           }
 
-          if (offset >= 8000 && !playing)
-            play()
-
           aGiantBuffer.copyToChannel(convertedBytes, 0, offset)
 
           offset = offset + byteArray.byteLength
+
+          if (offset >= 4000 && !playing)
+            play()
         }
 
         const squash = (intValue) => {

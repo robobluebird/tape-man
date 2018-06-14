@@ -25,15 +25,22 @@ void buttonCallback();
 void sampleCallback();
 void transmitCallback();
 
-unsigned long sampleInterval = 125L;
+void shiftUp(int scroll);
+void shiftDown(int scroll);
+void shiftLeft(int scroll);
+void shiftRight(int scroll);
 
-uint8_t sampleBuffer[8000];
-uint8_t transmitBuffer[8000];
+unsigned long sampleInterval = 250UL;
+
+uint8_t sampleBuffer[255];
+uint8_t transmitBuffer[255];
 int byteIndex = 0;
-int counter = 0;
+int counter = 1;
+int scroll = 1;
 
-// char server[] = "10.17.105.76";
-char server[] = "tape-man.herokuapp.com";
+// char server[] = "10.17.108.214";
+char server[] = "172.20.10.5";
+// char server[] = "tape-man.herokuapp.com";
 char* pathPtr = "/";
 char* hostPtr = server;
 
@@ -45,7 +52,6 @@ String ssid = "";
 String password = "";
 int oldPosition  = 0;
 int lastScrollTime = millis();
-int scroll = 1;
 bool selectingNetwork = false;
 bool selectingPassword = false;
 bool readyToBroadcast = false;
@@ -58,20 +64,37 @@ ButtonCB forward(12);
 
 Task rotary(TASK_MILLISECOND, TASK_FOREVER, &rotaryCallback, &runner, true);
 Task buttons(TASK_MILLISECOND, TASK_FOREVER, &buttonCallback, &runner, true);
-
 Task sample(sampleInterval, TASK_FOREVER, &sampleCallback, &runner, false);
 Task transmit(TASK_IMMEDIATE, TASK_ONCE, &transmitCallback, &runner, false);
 
-void onBackClick(const Button& b){
-  Serial.println("Back button pressed.");
+void onBackClick(const Button& b) {
+  if (selectingNetwork) {
+  } else if (selectingPassword) {
+    deleteCharacter();
+  } else if (readyToBroadcast) {
+  }
 }
 
-void onCenterClick(const Button& b){
-  Serial.println("Center button pressed.");
+void onCenterClick(const Button& b) {
+  if (selectingNetwork) {\
+    selectNetwork();
+  } else if (selectingPassword) {
+    connectToNetwork();
+  } else if (readyToBroadcast) {
+    if (broadcasting) {
+      stopBroadcasting();
+    } else {
+      startBroadcasting();
+    }
+  }
 }
 
-void onForwardClick(const Button& b){
-  Serial.println("Forward button pressed.");
+void onForwardClick(const Button& b) {
+  if (selectingNetwork) {
+  } else if (selectingPassword) {
+    selectCharacter();
+  } else if (readyToBroadcast) {
+  }
 }
 
 void buttonCallback() {
@@ -81,7 +104,25 @@ void buttonCallback() {
 }
 
 void rotaryCallback() {
-  
+  int newPosition = myEnc.read();
+
+  if (newPosition != oldPosition && newPosition % 4 == 0) {
+    if (newPosition > oldPosition) {
+      if (selectingNetwork) {
+        shiftUp(scroll);
+      } else if (selectingPassword) {
+        shiftLeft(scroll);
+      }
+    } else {
+      if (selectingNetwork) {
+        shiftDown(scroll);
+      } else if (selectingPassword) {
+        shiftRight(scroll);
+      }
+    }
+
+    oldPosition = newPosition;
+  }
 }
 
 void sampleCallback() {
@@ -95,10 +136,8 @@ void sampleCallback() {
 
   sampleBuffer[byteIndex] = analogValue;
 
-  if (byteIndex >= 7999) {
-    memcpy(transmitBuffer, sampleBuffer, 8000);
-    Serial.print("copied! in iteration ");
-    Serial.println(counter);
+  if (byteIndex >= 254) {
+    memcpy(transmitBuffer, sampleBuffer, 255);
     byteIndex = 0;
     doTransmit.signal();
   } else {
@@ -107,23 +146,31 @@ void sampleCallback() {
 }
 
 void transmitCallback() {
-  Serial.print("transmitted! in iteration ");
-  Serial.println(counter);
-  Serial.println(transmitBuffer[0]);
+  webSocketClient.sendData(transmitBuffer, sizeof(transmitBuffer));
 
-  doTransmit.setWaiting(1);
-  transmit.waitFor(&doTransmit);
-  
-  counter++;
+  prepareForSignal();
+
+  // yield();
+
+  // showStatus();
 }
 
+void prepareForSignal() {
+  doTransmit.setWaiting(1);
+  transmit.waitFor(&doTransmit);
+}
+
+void showStatus() {
+  showBroadcasting(true);
+  counter++;
+}
 
 void setup () {
   webSocketClient.path = pathPtr;
   webSocketClient.host = hostPtr;
-  
+
   pinMode(5, OUTPUT);
-  
+
   Serial.begin(115200);
 
   EEPROM.begin(512);
@@ -136,7 +183,7 @@ void setup () {
   display.println("hello.");
   display.display();
   delay(2000);
-  
+
   back.setClickHandler(onBackClick);
   center.setClickHandler(onCenterClick);
   forward.setClickHandler(onForwardClick);
@@ -147,6 +194,7 @@ void setup () {
   runner.disableAll();
 
   buttons.enable();
+  rotary.enable();
 
   if (readConnection()) {
     connectToNetwork();
@@ -157,6 +205,7 @@ void setup () {
 
 void loop () {
   runner.execute();
+  yield();
 }
 
 void showBroadcasting(bool b) {
@@ -165,19 +214,17 @@ void showBroadcasting(bool b) {
   readyToBroadcast = true;
   broadcasting = b;
 
-  if (broadcasting) {
-    runner.startNow();
-    runner.enableAll();
-  } else {
-    runner.disableAll();
-    buttons.enable();
-    rotary.enable();
-  }
-
   resetDisplay();
 
   display.println("/////////////////////");
-  display.println(broadcasting ? "broadcasting!" : "not broadcasting yet");
+  display.println(broadcasting ? "" : "not broadcasting yet");
+
+  if (broadcasting) {
+    display.setTextSize(2);
+    display.println(counter);
+    display.setTextSize(1);
+  }
+
   display.display();
 }
 
@@ -461,7 +508,7 @@ void connectToNetwork() {
     scanNetworks();
   } else {
     if (writeConnection()) {
-      showBroadcasting(false);
+      stopBroadcasting();
     } else {
       showError(":(");
     }
@@ -505,15 +552,29 @@ void startBroadcasting() {
   display.display();
 
   if (webSocketClient.handshake(client)) {
+    runner.startNow();
+    runner.enableAll();
+
     showBroadcasting(true);
   } else {
+    stopBroadcasting();
+
     showBroadcastingConnectionAttempt("handshake failed");
     delay(2000);
+
     showBroadcasting(false);
   }
 }
 
 void stopBroadcasting() {
+  runner.disableAll();
+  runner.startNow();
+  buttons.enable();
+  rotary.enable();
+  sample.enable();
+
+  counter = 1;
+
   showBroadcasting(false);
 }
 
