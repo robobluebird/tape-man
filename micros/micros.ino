@@ -1,5 +1,9 @@
 #define _TASK_MICRO_RES
 #define _TASK_STATUS_REQUEST
+#define WS_FIN 0x80
+#define WS_MASK 0x80
+#define WS_SIZE16 126
+#define WS_OPCODE_BINARY 0x02
 
 #include <Button.h>
 #include <TaskScheduler.h>
@@ -30,17 +34,18 @@ void shiftDown(int scroll);
 void shiftLeft(int scroll);
 void shiftRight(int scroll);
 
-unsigned long sampleInterval = 250UL;
+unsigned long sampleInterval = 333UL;
 
-uint8_t sampleBuffer[255];
-uint8_t transmitBuffer[255];
+uint8_t sampleBuffer[3000];
+uint8_t transmitBuffer[3000];
 int byteIndex = 0;
 int counter = 1;
 int scroll = 1;
 
 // char server[] = "10.17.108.214";
-char server[] = "172.20.10.5";
-// char server[] = "tape-man.herokuapp.com";
+// char server[] = "172.20.10.5";
+// char server[] = "10.17.110.148";
+char server[] = "tape-man.herokuapp.com";
 char* pathPtr = "/";
 char* hostPtr = server;
 
@@ -136,8 +141,8 @@ void sampleCallback() {
 
   sampleBuffer[byteIndex] = analogValue;
 
-  if (byteIndex >= 254) {
-    memcpy(transmitBuffer, sampleBuffer, 255);
+  if (byteIndex >= 2999) {
+    memcpy(transmitBuffer, sampleBuffer, 3000);
     byteIndex = 0;
     doTransmit.signal();
   } else {
@@ -145,14 +150,14 @@ void sampleCallback() {
   }
 }
 
+long last = millis();
+
 void transmitCallback() {
-  webSocketClient.sendData(transmitBuffer, sizeof(transmitBuffer));
-
+  Serial.println("bip");
+  Serial.println(millis() - last);
+  last = millis();
+  sendData(transmitBuffer, sizeof(transmitBuffer));
   prepareForSignal();
-
-  // yield();
-
-  // showStatus();
 }
 
 void prepareForSignal() {
@@ -205,7 +210,6 @@ void setup () {
 
 void loop () {
   runner.execute();
-  yield();
 }
 
 void showBroadcasting(bool b) {
@@ -614,4 +618,54 @@ void handlePasswordSelection() {
     if (millis() - lastScrollTime > 100)
       scroll = 1;
   }
+}
+
+void sendData(uint8_t *bytes, size_t size) {
+  uint8_t mask[4];
+  int buffer_size = size + 1;
+  int buffer_index = 0;
+
+  if (size > 125) {
+    buffer_size += 3;
+  } else {
+    buffer_size += 1;
+  }
+
+  if (WS_MASK > 0) {
+    buffer_size += 4;
+  }
+
+  uint8_t buffer[buffer_size];
+
+  buffer[buffer_index++] = (uint8_t) (WS_OPCODE_BINARY | WS_FIN);
+  
+  if (size > 125) {
+    buffer[buffer_index++] = (uint8_t) (WS_SIZE16 | WS_MASK);
+    buffer[buffer_index++] = (uint8_t) (size >> 8);
+    buffer[buffer_index++] = (uint8_t) (size & 0xFF);
+  } else {
+    buffer[buffer_index++] = (uint8_t) (size | WS_MASK);
+  }
+
+  if (WS_MASK > 0) {
+    mask[0] = random(0, 256);
+    mask[1] = random(0, 256);
+    mask[2] = random(0, 256);
+    mask[3] = random(0, 256);
+
+    buffer[buffer_index++] = mask[0];
+    buffer[buffer_index++] = mask[1];
+    buffer[buffer_index++] = mask[2];
+    buffer[buffer_index++] = mask[3];
+
+    for (int i=0; i<size; ++i) {
+      bytes[i] = bytes[i] ^ mask[i % 4];
+    }
+  }
+
+  for (int i = 0; i < size; i++) {
+    buffer[buffer_index++] = bytes[i];
+  }
+  
+  client.write(buffer, buffer_size);
 }

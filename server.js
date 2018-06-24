@@ -34,4 +34,5 @@ wss.on('connection', function connection(ws, request) {
   })
 })
 
-server.listen(process.env.PORT || 8080);
+// server.listen(process.env.PORT || 8080);
+server.listen(80);
