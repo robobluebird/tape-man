@@ -36,8 +36,9 @@ void shiftRight(int scroll);
 
 unsigned long sampleInterval = 333UL;
 
-uint8_t sampleBuffer[3000];
-uint8_t transmitBuffer[3000];
+uint8_t sampleBuffer[131];
+uint8_t transmitBuffer[125];
+uint8_t mask[4];
 int byteIndex = 0;
 int counter = 1;
 int scroll = 1;
@@ -62,6 +63,8 @@ bool selectingPassword = false;
 bool readyToBroadcast = false;
 bool broadcasting = false;
 const String chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()-_+=~`[]{}|\\:;\"'<>,.?/";
+long last = millis();
+int coolCounter = 0;
 
 ButtonCB back(16);
 ButtonCB center(13);
@@ -81,7 +84,7 @@ void onBackClick(const Button& b) {
 }
 
 void onCenterClick(const Button& b) {
-  if (selectingNetwork) {\
+  if (selectingNetwork) {
     selectNetwork();
   } else if (selectingPassword) {
     connectToNetwork();
@@ -139,38 +142,53 @@ void sampleCallback() {
     digitalWrite(5, LOW);
   }
 
-  sampleBuffer[byteIndex] = analogValue;
+  sampleBuffer[byteIndex + 6] = analogValue ^ mask[byteIndex % 4];
 
-  if (byteIndex >= 2999) {
-    memcpy(transmitBuffer, sampleBuffer, 3000);
-    byteIndex = 0;
+  if (byteIndex >= 125) {
     doTransmit.signal();
+    byteIndex = 0;
   } else {
     byteIndex++;
   }
 }
 
-long last = millis();
-
 void transmitCallback() {
-  Serial.println("bip");
-  Serial.println(millis() - last);
-  last = millis();
-  sendData(transmitBuffer, sizeof(transmitBuffer));
-  prepareForSignal();
-}
-
-void prepareForSignal() {
   doTransmit.setWaiting(1);
   transmit.waitFor(&doTransmit);
+  
+  if (coolCounter == 23) {
+    Serial.println(millis() - last);
+    last = millis();
+    coolCounter = 0;
+  } else {
+    coolCounter++;
+  }
+
+  actuallySend();
 }
 
-void showStatus() {
-  showBroadcasting(true);
-  counter++;
+void actuallySend() {
+  client.write(sampleBuffer, 131);
 }
+
+//void showStatus() {
+//  showBroadcasting(true);
+//  counter++;
+//}
 
 void setup () {
+  mask[0] = random(0, 256);
+  mask[1] = random(0, 256);
+  mask[2] = random(0, 256);
+  mask[3] = random(0, 256);
+  
+  sampleBuffer[0] = (uint8_t) (WS_OPCODE_BINARY | WS_FIN);
+  sampleBuffer[1] = (uint8_t) (125 | WS_MASK);
+  sampleBuffer[2] = mask[0];
+  sampleBuffer[3] = mask[1];
+  sampleBuffer[4] = mask[2];
+  sampleBuffer[5] = mask[3];
+  
   webSocketClient.path = pathPtr;
   webSocketClient.host = hostPtr;
 
@@ -200,6 +218,8 @@ void setup () {
 
   buttons.enable();
   rotary.enable();
+
+  Serial.println("bap");
 
   if (readConnection()) {
     connectToNetwork();
@@ -621,51 +641,5 @@ void handlePasswordSelection() {
 }
 
 void sendData(uint8_t *bytes, size_t size) {
-  uint8_t mask[4];
-  int buffer_size = size + 1;
-  int buffer_index = 0;
 
-  if (size > 125) {
-    buffer_size += 3;
-  } else {
-    buffer_size += 1;
-  }
-
-  if (WS_MASK > 0) {
-    buffer_size += 4;
-  }
-
-  uint8_t buffer[buffer_size];
-
-  buffer[buffer_index++] = (uint8_t) (WS_OPCODE_BINARY | WS_FIN);
-  
-  if (size > 125) {
-    buffer[buffer_index++] = (uint8_t) (WS_SIZE16 | WS_MASK);
-    buffer[buffer_index++] = (uint8_t) (size >> 8);
-    buffer[buffer_index++] = (uint8_t) (size & 0xFF);
-  } else {
-    buffer[buffer_index++] = (uint8_t) (size | WS_MASK);
-  }
-
-  if (WS_MASK > 0) {
-    mask[0] = random(0, 256);
-    mask[1] = random(0, 256);
-    mask[2] = random(0, 256);
-    mask[3] = random(0, 256);
-
-    buffer[buffer_index++] = mask[0];
-    buffer[buffer_index++] = mask[1];
-    buffer[buffer_index++] = mask[2];
-    buffer[buffer_index++] = mask[3];
-
-    for (int i=0; i<size; ++i) {
-      bytes[i] = bytes[i] ^ mask[i % 4];
-    }
-  }
-
-  for (int i = 0; i < size; i++) {
-    buffer[buffer_index++] = bytes[i];
-  }
-  
-  client.write(buffer, buffer_size);
 }
