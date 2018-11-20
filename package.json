@@ -8,8 +8,8 @@
     "start": "node server.js"
   },
   "dependencies": {
-    "node": "^9.5.0",
-    "ws": "^5.0.0"
+    "node": "^9.11.2",
+    "ws": "^5.2.2"
   },
   "repository": {
     "type": "git",
@@ -17,6 +17,6 @@
   },
   "license": "MIT",
   "devDependencies": {
-    "nodemon": "^1.17.1"
+    "nodemon": "^1.18.6"
   }
 }

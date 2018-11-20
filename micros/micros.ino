@@ -21,7 +21,7 @@ WiFiClient client;
 WebSocketClient webSocketClient;
 
 Scheduler runner;
-StatusRequest doTransmit;
+// StatusRequest doTransmit;
 Encoder myEnc(0, 4);
 
 void rotaryCallback();
@@ -34,10 +34,10 @@ void shiftDown(int scroll);
 void shiftLeft(int scroll);
 void shiftRight(int scroll);
 
-unsigned long sampleInterval = 333UL;
+unsigned long sampleInterval = 125UL;
 
-uint8_t sampleBuffer[131];
-uint8_t transmitBuffer[125];
+uint8_t sampleBuffer[8000];
+uint8_t transmitBuffer[8000];
 uint8_t mask[4];
 int byteIndex = 0;
 int counter = 1;
@@ -73,7 +73,7 @@ ButtonCB forward(12);
 Task rotary(TASK_MILLISECOND, TASK_FOREVER, &rotaryCallback, &runner, true);
 Task buttons(TASK_MILLISECOND, TASK_FOREVER, &buttonCallback, &runner, true);
 Task sample(sampleInterval, TASK_FOREVER, &sampleCallback, &runner, false);
-Task transmit(TASK_IMMEDIATE, TASK_ONCE, &transmitCallback, &runner, false);
+Task transmit(TASK_SECOND, TASK_FOREVER, &transmitCallback, &runner, false);
 
 void onBackClick(const Button& b) {
   if (selectingNetwork) {
@@ -142,10 +142,10 @@ void sampleCallback() {
     digitalWrite(5, LOW);
   }
 
-  sampleBuffer[byteIndex + 6] = analogValue ^ mask[byteIndex % 4];
+  sampleBuffer[byteIndex] = analogValue; // ^ mask[byteIndex % 4];
 
-  if (byteIndex >= 125) {
-    doTransmit.signal();
+  if (byteIndex >= 7999) {
+    memcpy(transmitBuffer, sampleBuffer, 8000);
     byteIndex = 0;
   } else {
     byteIndex++;
@@ -153,22 +153,15 @@ void sampleCallback() {
 }
 
 void transmitCallback() {
-  doTransmit.setWaiting(1);
-  transmit.waitFor(&doTransmit);
-  
-  if (coolCounter == 23) {
-    Serial.println(millis() - last);
-    last = millis();
-    coolCounter = 0;
-  } else {
-    coolCounter++;
+  //  doTransmit.setWaiting(1);
+  //  transmit.waitFor(&doTransmit);
+
+  Serial.println(millis() - last);
+  last = millis();
+
+  for(int i = 0; i < 8006; i++) {
+    webSocketClient.sendData(transmitBuffer, 8000, 0x02, false);
   }
-
-  actuallySend();
-}
-
-void actuallySend() {
-  client.write(sampleBuffer, 131);
 }
 
 //void showStatus() {
@@ -177,18 +170,18 @@ void actuallySend() {
 //}
 
 void setup () {
-  mask[0] = random(0, 256);
-  mask[1] = random(0, 256);
-  mask[2] = random(0, 256);
-  mask[3] = random(0, 256);
-  
-  sampleBuffer[0] = (uint8_t) (WS_OPCODE_BINARY | WS_FIN);
-  sampleBuffer[1] = (uint8_t) (125 | WS_MASK);
-  sampleBuffer[2] = mask[0];
-  sampleBuffer[3] = mask[1];
-  sampleBuffer[4] = mask[2];
-  sampleBuffer[5] = mask[3];
-  
+//  mask[0] = random(0, 256);
+//  mask[1] = random(0, 256);
+//  mask[2] = random(0, 256);
+//  mask[3] = random(0, 256);
+//
+//  sampleBuffer[0] = (uint8_t) (WS_OPCODE_BINARY | WS_FIN);
+//  sampleBuffer[1] = (uint8_t) (125 | WS_MASK);
+//  sampleBuffer[2] = mask[0];
+//  sampleBuffer[3] = mask[1];
+//  sampleBuffer[4] = mask[2];
+//  sampleBuffer[5] = mask[3];
+
   webSocketClient.path = pathPtr;
   webSocketClient.host = hostPtr;
 
@@ -211,15 +204,13 @@ void setup () {
   center.setClickHandler(onCenterClick);
   forward.setClickHandler(onForwardClick);
 
-  doTransmit.setWaiting(1);
-  transmit.waitFor(&doTransmit);
+  // doTransmit.setWaiting(1);
+  // transmit.waitFor(&doTransmit);
 
   runner.disableAll();
 
   buttons.enable();
   rotary.enable();
-
-  Serial.println("bap");
 
   if (readConnection()) {
     connectToNetwork();
@@ -578,6 +569,7 @@ void startBroadcasting() {
   if (webSocketClient.handshake(client)) {
     runner.startNow();
     runner.enableAll();
+    transmit.delay();
 
     showBroadcasting(true);
   } else {
